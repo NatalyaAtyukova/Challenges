@@ -15,14 +15,14 @@ data class Challenge(
 )
 
 enum class ChallengeCategory {
-    CONVERSATION,
-    VIDEO,
-    PUBLIC,
-    DAILY
+    CONVERSATION, // Разговорные
+    VIDEO,       // Видео
+    PUBLIC,      // Публичные выступления
+    DAILY       // Ежедневные
 }
 
 enum class ChallengeDifficulty {
-    EASY,
-    MEDIUM,
-    HARD
+    EASY,    // Легкий
+    MEDIUM,  // Средний
+    HARD     // Сложный
 } 

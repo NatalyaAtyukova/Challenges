@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Челленджи</string>
+    <string name="favorites">Избранное</string>
+    <string name="settings">Настройки</string>
+    <string name="random_challenge">Случайный челлендж</string>
+    <string name="sharing_coming_soon">Поделиться будет доступно скоро!</string>
+    <string name="share">Поделиться</string>
+    <string name="all_categories">Все категории</string>
+    <string name="conversation">Общение</string>
+    <string name="video">Видео</string>
+    <string name="public_speaking">Публичные выступления</string>
+    <string name="daily">Ежедневные</string>
+</resources> 

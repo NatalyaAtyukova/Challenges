@@ -9,7 +9,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.challenges.R
 import com.challenges.data.model.Challenge
 import com.challenges.data.model.ChallengeCategory
 
@@ -75,7 +77,7 @@ fun ChallengeCard(
             ) {
                 AssistChip(
                     onClick = { },
-                    label = { Text(challenge.category.name) }
+                    label = { Text(getCategoryName(challenge.category)) }
                 )
                 Row {
                     IconButton(onClick = onFavoriteClick) {
@@ -85,13 +87,13 @@ fun ChallengeCard(
                             } else {
                                 Icons.Outlined.FavoriteBorder
                             },
-                            contentDescription = "Favorite"
+                            contentDescription = stringResource(R.string.favorites)
                         )
                     }
                     IconButton(onClick = onShareClick) {
                         Icon(
                             imageVector = Icons.Filled.Share,
-                            contentDescription = "Share"
+                            contentDescription = stringResource(R.string.share)
                         )
                     }
                 }
@@ -116,14 +118,24 @@ fun CategoryChips(
         FilterChip(
             selected = selectedCategory == null,
             onClick = { onCategorySelected(null) },
-            label = { Text("All") }
+            label = { Text(stringResource(R.string.all_categories)) }
         )
         categories.forEach { category ->
             FilterChip(
                 selected = category == selectedCategory,
                 onClick = { onCategorySelected(category) },
-                label = { Text(category.name) }
+                label = { Text(getCategoryName(category)) }
             )
         }
+    }
+}
+
+@Composable
+private fun getCategoryName(category: ChallengeCategory): String {
+    return when (category) {
+        ChallengeCategory.CONVERSATION -> stringResource(R.string.conversation)
+        ChallengeCategory.VIDEO -> stringResource(R.string.video)
+        ChallengeCategory.PUBLIC -> stringResource(R.string.public_speaking)
+        ChallengeCategory.DAILY -> stringResource(R.string.daily)
     }
 } 

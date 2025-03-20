@@ -1,3 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Challenges</string>
+    <string name="all_categories">All</string>
+    <string name="conversation">Conversation</string>
+    <string name="video">Video</string>
+    <string name="public_speaking">Public Speaking</string>
+    <string name="daily">Daily</string>
+    <string name="favorites">Favorites</string>
+    <string name="settings">Settings</string>
+    <string name="random_challenge">Random Challenge</string>
+    <string name="share">Share</string>
+    <string name="sharing_coming_soon">Sharing will be available soon!</string>
 </resources>

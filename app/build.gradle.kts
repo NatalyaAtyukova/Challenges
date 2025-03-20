@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.challenges"
+    namespace = "com.challenges"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.challenges"
+        applicationId = "com.challenges"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -75,6 +75,7 @@ dependencies {
     implementation(libs.coroutines)
     implementation(libs.lifecycle.runtime)
     implementation(libs.lifecycle.viewmodel)
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     
     implementation("androidx.hilt:hilt-work:1.1.0")
     ksp("androidx.hilt:hilt-compiler:1.1.0")

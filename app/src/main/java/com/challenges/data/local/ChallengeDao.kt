@@ -10,6 +10,9 @@ interface ChallengeDao {
     @Query("SELECT * FROM challenges")
     fun getAllChallenges(): Flow<List<Challenge>>
 
+    @Query("SELECT * FROM challenges")
+    suspend fun getAllChallengesOneShot(): List<Challenge>
+
     @Query("SELECT * FROM challenges WHERE category = :category")
     fun getChallengesByCategory(category: ChallengeCategory): Flow<List<Challenge>>
 
