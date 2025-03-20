@@ -1,19 +1,18 @@
 package com.challenges
 
 import android.app.Application
-import androidx.room.Room
-import com.challenges.data.local.ChallengeDatabase
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
-class ChallengesApplication : Application() {
-    lateinit var database: ChallengeDatabase
-        private set
+@HiltAndroidApp
+class ChallengesApplication : Application(), Configuration.Provider {
+    @Inject
+    lateinit var workerFactory: HiltWorkerFactory
 
-    override fun onCreate() {
-        super.onCreate()
-        database = Room.databaseBuilder(
-            applicationContext,
-            ChallengeDatabase::class.java,
-            "challenges_database"
-        ).build()
-    }
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 } 

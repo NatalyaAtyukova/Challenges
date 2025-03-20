@@ -4,6 +4,8 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.challenges.data.model.Challenge
+import com.challenges.data.model.ChallengeCategory
+import com.challenges.data.model.ChallengeDifficulty
 
 @Database(entities = [Challenge::class], version = 1)
 @TypeConverters(Converters::class)
@@ -20,7 +22,7 @@ class Converters {
 
     @androidx.room.TypeConverter
     fun toChallengeCategory(value: String): ChallengeCategory {
-        return ChallengeCategory.valueOf(value)
+        return enumValueOf(value)
     }
 
     @androidx.room.TypeConverter
@@ -30,6 +32,6 @@ class Converters {
 
     @androidx.room.TypeConverter
     fun toChallengeDifficulty(value: String): ChallengeDifficulty {
-        return ChallengeDifficulty.valueOf(value)
+        return enumValueOf(value)
     }
 } 
