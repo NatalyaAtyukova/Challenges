@@ -7,6 +7,12 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ChallengeDao {
+    @Query("SELECT * FROM challenges WHERE isActive = 1")
+    fun getActiveChallenges(): Flow<List<Challenge>>
+
+    @Query("SELECT * FROM challenges WHERE isActive = 1 AND category = :category")
+    fun getActiveChallengesByCategory(category: ChallengeCategory): Flow<List<Challenge>>
+
     @Query("SELECT * FROM challenges")
     fun getAllChallenges(): Flow<List<Challenge>>
 
@@ -19,8 +25,8 @@ interface ChallengeDao {
     @Query("SELECT * FROM challenges WHERE isFavorite = 1")
     fun getFavoriteChallenges(): Flow<List<Challenge>>
 
-    @Query("SELECT * FROM challenges ORDER BY RANDOM() LIMIT 1")
-    suspend fun getRandomChallenge(): Challenge?
+    @Query("SELECT * FROM challenges WHERE isActive = 1 ORDER BY RANDOM() LIMIT 1")
+    suspend fun getRandomActiveChallenge(): Challenge?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertChallenge(challenge: Challenge)
@@ -33,4 +39,10 @@ interface ChallengeDao {
 
     @Query("UPDATE challenges SET isFavorite = :isFavorite WHERE id = :challengeId")
     suspend fun updateFavoriteStatus(challengeId: Long, isFavorite: Boolean)
+
+    @Query("UPDATE challenges SET isActive = :isActive WHERE id = :challengeId")
+    suspend fun updateActiveStatus(challengeId: Long, isActive: Boolean)
+
+    @Query("DELETE FROM challenges")
+    suspend fun clearAll()
 } 

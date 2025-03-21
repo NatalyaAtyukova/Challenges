@@ -11,4 +11,6 @@
     <string name="random_challenge">Random Challenge</string>
     <string name="share">Share</string>
     <string name="sharing_coming_soon">Sharing will be available soon!</string>
+    <string name="home">Home</string>
+    <string name="share_via">Share via</string>
 </resources>

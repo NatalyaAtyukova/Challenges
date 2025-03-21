@@ -11,14 +11,14 @@ import javax.inject.Singleton
 class ChallengeRepository @Inject constructor(
     private val challengeDao: ChallengeDao
 ) {
-    fun getAllChallenges(): Flow<List<Challenge>> = challengeDao.getAllChallenges()
+    fun getActiveChallenges(): Flow<List<Challenge>> = challengeDao.getActiveChallenges()
     
-    fun getChallengesByCategory(category: ChallengeCategory): Flow<List<Challenge>> = 
-        challengeDao.getChallengesByCategory(category)
+    fun getActiveChallengesByCategory(category: ChallengeCategory): Flow<List<Challenge>> = 
+        challengeDao.getActiveChallengesByCategory(category)
     
     fun getFavoriteChallenges(): Flow<List<Challenge>> = challengeDao.getFavoriteChallenges()
     
-    suspend fun getRandomChallenge(): Challenge? = challengeDao.getRandomChallenge()
+    suspend fun getRandomChallenge(): Challenge? = challengeDao.getRandomActiveChallenge()
     
     suspend fun toggleFavorite(challenge: Challenge) {
         challengeDao.updateFavoriteStatus(challenge.id, !challenge.isFavorite)

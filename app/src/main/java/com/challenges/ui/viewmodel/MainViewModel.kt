@@ -36,7 +36,7 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true)
-                repository.getAllChallenges().collect { challenges ->
+                repository.getActiveChallenges().collect { challenges ->
                     _uiState.value = _uiState.value.copy(
                         challenges = challenges,
                         isLoading = false
@@ -59,7 +59,7 @@ class MainViewModel @Inject constructor(
                     isLoading = true
                 )
                 if (category != null) {
-                    repository.getChallengesByCategory(category).collect { challenges ->
+                    repository.getActiveChallengesByCategory(category).collect { challenges ->
                         _uiState.value = _uiState.value.copy(
                             challenges = challenges,
                             isLoading = false

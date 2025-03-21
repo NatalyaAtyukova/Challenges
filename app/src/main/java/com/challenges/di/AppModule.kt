@@ -2,10 +2,7 @@ package com.challenges.di
 
 import android.content.Context
 import androidx.room.Room
-import com.challenges.data.local.ChallengeDao
-import com.challenges.data.local.ChallengeDatabase
-import com.challenges.data.local.DatabaseInitializer
-import com.challenges.data.local.DatabaseInitializerRu
+import com.challenges.data.local.*
 import com.challenges.data.repository.ChallengeRepository
 import dagger.Module
 import dagger.Provides
@@ -31,18 +28,22 @@ object AppModule {
             context,
             ChallengeDatabase::class.java,
             "challenges_database"
-        ).build().also { database ->
+        )
+        .addMigrations(MIGRATION_1_2)
+        .fallbackToDestructiveMigration()
+        .build().also { database ->
             // Populate database with initial data
             CoroutineScope(Dispatchers.IO).launch {
                 val dao = database.challengeDao()
-                if (dao.getAllChallengesOneShot().isEmpty()) {
-                    val challenges = when (Locale.getDefault().language) {
-                        "ru" -> DatabaseInitializerRu.initialChallenges
-                        else -> DatabaseInitializer.initialChallenges
-                    }
-                    challenges.forEach { challenge ->
-                        dao.insertChallenge(challenge)
-                    }
+                // Clear existing data
+                dao.clearAll()
+                // Add new data based on current locale
+                val challenges = when (Locale.getDefault().language) {
+                    "ru" -> DatabaseInitializerRu.initialChallenges
+                    else -> DatabaseInitializer.initialChallenges
+                }
+                challenges.forEach { challenge ->
+                    dao.insertChallenge(challenge)
                 }
             }
         }

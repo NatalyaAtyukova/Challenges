@@ -11,7 +11,10 @@ data class Challenge(
     val description: String,
     val category: ChallengeCategory,
     val difficulty: ChallengeDifficulty,
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    val isActive: Boolean = true,
+    val activationDate: Long = System.currentTimeMillis(),
+    val expirationDate: Long = System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000 // 7 days by default
 )
 
 enum class ChallengeCategory {

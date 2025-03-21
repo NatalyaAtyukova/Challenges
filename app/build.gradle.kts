@@ -20,13 +20,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments += mapOf(
-                    "room.schemaLocation" to "$projectDir/schemas",
-                    "room.incremental" to "true"
-                )
-            }
+        
+        ksp {
+            arg("room.schemaLocation", "$projectDir/schemas")
+            arg("room.incremental", "true")
         }
     }
 
@@ -70,24 +67,23 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     
-    implementation(libs.navigation.compose)
-    implementation(libs.workmanager)
+    implementation(libs.navigation)
+    implementation(libs.work)
     implementation(libs.coroutines)
     implementation(libs.lifecycle.runtime)
     implementation(libs.lifecycle.viewmodel)
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+    implementation(libs.lifecycle.compose)
     
-    implementation("androidx.hilt:hilt-work:1.1.0")
-    ksp("androidx.hilt:hilt-compiler:1.1.0")
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.compiler.androidx)
     
-    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
-    implementation("androidx.compose.material:material-icons-extended:1.6.1")
+    implementation(libs.hilt.navigation)
+    implementation(libs.compose.material.icons)
     
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.junit.ext)
+    androidTestImplementation(libs.espresso)
     androidTestImplementation(platform(libs.compose.bom))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    androidTestImplementation(libs.compose.ui.test)
+    debugImplementation(libs.compose.ui.test.manifest)
 }
