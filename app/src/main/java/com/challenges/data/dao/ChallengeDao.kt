@@ -19,6 +19,12 @@ interface ChallengeDao {
     @Query("SELECT * FROM challenges WHERE isCustom = 1 ORDER BY createdAt DESC")
     fun getCustomChallenges(): Flow<List<Challenge>>
 
+    @Query("SELECT * FROM challenges WHERE category = 'COMMUNITY' ORDER BY createdAt DESC")
+    fun getCommunityChallenges(): Flow<List<Challenge>>
+
+    @Query("SELECT * FROM challenges WHERE category = 'COMMUNITY'")
+    suspend fun getCommunityOneShot(): List<Challenge>
+
     @Query("SELECT * FROM challenges WHERE isSeasonal = 1 AND startDate <= :now AND endDate >= :now ORDER BY createdAt DESC")
     fun getActiveSeasonalChallenges(now: LocalDateTime): Flow<List<Challenge>>
 

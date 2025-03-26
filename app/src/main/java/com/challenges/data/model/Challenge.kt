@@ -24,7 +24,8 @@ data class Challenge(
     val isCompleted: Boolean = false,
     val notes: String? = null, // Заметки пользователя
     val createdAt: LocalDateTime = LocalDateTime.now(),
-    val updatedAt: LocalDateTime = LocalDateTime.now()
+    val updatedAt: LocalDateTime = LocalDateTime.now(),
+    val userName: String? = null // Имя пользователя, создавшего челлендж
 )
 
 enum class ChallengeCategory {
@@ -36,7 +37,8 @@ enum class ChallengeCategory {
     TEACHING,    // Обучение
     PODCAST,     // Подкасты
     WRITING,     // Письмо
-    CONSULTING   // Консультации
+    CONSULTING,  // Консультации
+    COMMUNITY    // Пользовательские челленджи сообщества
 }
 
 enum class ChallengeDifficulty {

@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -35,6 +36,10 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+    
+    lint {
+        disable += "MissingTranslation"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -79,6 +84,10 @@ dependencies {
     
     implementation(libs.hilt.navigation)
     implementation(libs.compose.material.icons)
+    
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.bundles.firebase)
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.junit.ext)

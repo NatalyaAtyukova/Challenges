@@ -51,7 +51,11 @@ class ChallengeRepository @Inject constructor(
     fun getTotalPoints(): Flow<Int?> = challengeDao.getTotalPoints()
     
     fun getCompletedChallengesCount(): Flow<Int> = challengeDao.getCompletedChallengesCount()
-
+    
+    suspend fun getCustomChallengesCount(): Int {
+        return challengeDao.getAllChallengesOneShot().count { it.isCustom }
+    }
+    
     suspend fun getRandomChallenge(): Challenge? {
         val challenges = challengeDao.getAllChallengesOneShot()
         return challenges.filter { !it.isCompleted }.randomOrNull()

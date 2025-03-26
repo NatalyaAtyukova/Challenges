@@ -3,9 +3,11 @@ package com.challenges.di
 import android.content.Context
 import androidx.room.Room
 import com.challenges.data.dao.ChallengeDao
+import com.challenges.data.dao.AchievementDao
 import com.challenges.data.db.ChallengeDatabase
 import com.challenges.data.model.Challenge
 import com.challenges.data.repository.ChallengeRepository
+import com.challenges.data.repository.AchievementRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -42,6 +44,8 @@ object AppModule {
         )
         .addMigrations(ChallengeDatabase.MIGRATION_1_2)
         .addMigrations(ChallengeDatabase.MIGRATION_2_3)
+        .addMigrations(ChallengeDatabase.MIGRATION_3_4)
+        .addMigrations(ChallengeDatabase.MIGRATION_4_5)
         .fallbackToDestructiveMigration()
         .build()
     }
@@ -54,10 +58,25 @@ object AppModule {
     
     @Provides
     @Singleton
+    fun provideAchievementDao(database: ChallengeDatabase): AchievementDao {
+        return database.achievementDao()
+    }
+    
+    @Provides
+    @Singleton
     fun provideChallengeRepository(
         dao: ChallengeDao
     ): ChallengeRepository {
         return ChallengeRepository(dao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAchievementRepository(
+        achievementDao: AchievementDao,
+        challengeDao: ChallengeDao
+    ): AchievementRepository {
+        return AchievementRepository(achievementDao, challengeDao)
     }
 
     @Provides
@@ -318,7 +337,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideInitializer(
+    fun provideInitializeDatabase(
         dao: ChallengeDao,
         @EnglishChallenges englishChallenges: List<Challenge>,
         @RussianChallenges russianChallenges: List<Challenge>

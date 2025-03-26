@@ -2,8 +2,11 @@ package com.challenges.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.challenges.data.model.Achievement
+import com.challenges.data.model.AchievementType
 import com.challenges.data.model.Challenge
 import com.challenges.data.model.ChallengeCategory
+import com.challenges.data.repository.AchievementRepository
 import com.challenges.data.repository.ChallengeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -16,7 +19,8 @@ data class MainUiState(
     val selectedCategory: String? = null,
     val currentChallenge: Challenge? = null,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val recentlyUnlockedAchievements: List<com.challenges.data.model.Achievement> = emptyList()
 )
 
 enum class SortOption {
@@ -27,7 +31,8 @@ enum class SortOption {
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val repository: ChallengeRepository
+    private val repository: ChallengeRepository,
+    private val achievementRepository: AchievementRepository
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(MainUiState())
@@ -50,6 +55,11 @@ class MainViewModel @Inject constructor(
 
     init {
         loadChallenges()
+        
+        // Initialize achievements
+        viewModelScope.launch {
+            achievementRepository.initializeDefaultAchievements()
+        }
     }
 
     val challenges = combine(
@@ -74,6 +84,8 @@ class MainViewModel @Inject constructor(
 
     val totalPoints = repository.getTotalPoints()
     val completedChallengesCount = repository.getCompletedChallengesCount()
+    val achievementPoints = achievementRepository.getAchievementPoints()
+    val unlockedAchievementsCount = achievementRepository.getUnlockedAchievementsCount()
 
     private fun loadChallenges() {
         viewModelScope.launch {
@@ -172,7 +184,17 @@ class MainViewModel @Inject constructor(
     fun toggleCompletion(challenge: Challenge) {
         viewModelScope.launch {
             try {
-                repository.updateCompletionStatus(challenge.id, !challenge.isCompleted)
+                val newCompletionStatus = !challenge.isCompleted
+                repository.updateCompletionStatus(challenge.id, newCompletionStatus)
+                
+                // Check for achievements if challenge is now completed
+                if (newCompletionStatus) {
+                    // Get updated challenge with new completion status
+                    val updatedChallenge = repository.getChallengeById(challenge.id)
+                    if (updatedChallenge != null) {
+                        achievementRepository.checkAchievements(updatedChallenge)
+                    }
+                }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = e.message)
             }
@@ -198,7 +220,29 @@ class MainViewModel @Inject constructor(
                 points = points,
                 isCustom = true
             )
-            repository.insertChallenge(challenge)
+            val id = repository.insertChallenge(challenge)
+            
+            // Check achievements related to creating challenges
+            try {
+                // Get created challenge
+                val createdChallenge = repository.getChallengeById(id)
+                
+                // Get custom challenge count
+                val createdChallengesCount = repository.getCustomChallengesCount()
+                
+                // Get achievements of type CREATED_CHALLENGES
+                val createdChallengesAchievements = achievementRepository
+                    .getAllAchievements()
+                    .first()
+                    .filter { it.condition == com.challenges.data.model.AchievementType.CREATED_CHALLENGES }
+                
+                // Update progress for each achievement
+                for (achievement in createdChallengesAchievements) {
+                    achievementRepository.updateAchievementProgress(achievement.id, createdChallengesCount)
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message)
+            }
         }
     }
 

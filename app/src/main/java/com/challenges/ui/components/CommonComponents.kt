@@ -49,17 +49,18 @@ fun CategoryChips(
     onCategorySelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val categories = listOf("CONVERSATION", "VIDEO", "PUBLIC", "DAILY")
     Row(
         modifier = modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        ChallengeCategory.values().forEach { category ->
+        categories.forEach { category ->
             FilterChip(
-                selected = category.name == selectedCategory,
-                onClick = { onCategorySelected(category.name) },
-                label = { Text(getCategoryName(category.name)) }
+                selected = category == selectedCategory,
+                onClick = { onCategorySelected(category) },
+                label = { Text(getCategoryName(category)) }
             )
         }
     }

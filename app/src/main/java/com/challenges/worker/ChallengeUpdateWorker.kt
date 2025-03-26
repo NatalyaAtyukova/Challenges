@@ -23,23 +23,26 @@ class ChallengeUpdateWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
-            // Clear existing data
-            challengeDao.clearAll()
-            
-            // Add new data based on current locale
-            val challenges = when (Locale.getDefault().language) {
-                "ru" -> russianChallenges
-                else -> englishChallenges
-            }
-            
-            // Insert challenges
-            for (challenge in challenges) {
-                challengeDao.insertChallenge(challenge)
-            }
-            
+            updateChallenges()
             Result.success()
         } catch (e: Exception) {
             Result.retry()
+        }
+    }
+    
+    private suspend fun updateChallenges() {
+        // Clear existing data
+        challengeDao.clearAll()
+        
+        // Add new data based on current locale
+        val challenges = when (Locale.getDefault().language) {
+            "ru" -> russianChallenges
+            else -> englishChallenges
+        }
+        
+        // Insert challenges
+        for (challenge in challenges) {
+            challengeDao.insertChallenge(challenge)
         }
     }
 } 

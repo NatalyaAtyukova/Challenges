@@ -9,7 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.challenges.data.model.Challenge
-import com.challenges.ui.screens.MainScreen
+import com.challenges.ui.navigation.AppNavigation
 import com.challenges.ui.theme.ChallengesTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -23,11 +23,9 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen(
-                        onShareClick = { challenge ->
-                            shareChallenge(challenge)
-                        }
-                    )
+                    AppNavigation { challenge ->
+                        shareChallenge(challenge)
+                    }
                 }
             }
         }

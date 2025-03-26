@@ -5,6 +5,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
@@ -25,7 +27,9 @@ import com.challenges.ui.viewmodel.SortOption
 @Composable
 fun MainScreen(
     viewModel: MainViewModel = hiltViewModel(),
-    onShareClick: (Challenge) -> Unit
+    onShareClick: (Challenge) -> Unit,
+    onNavigateToAchievements: () -> Unit = {},
+    onSignOut: () -> Unit = {}
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var selectedChallenge by remember { mutableStateOf<Challenge?>(null) }
@@ -38,6 +42,8 @@ fun MainScreen(
     val showSeasonalChallenges by viewModel.showSeasonalChallenges.collectAsState()
     val totalPoints by viewModel.totalPoints.collectAsState(initial = 0)
     val completedChallengesCount by viewModel.completedChallengesCount.collectAsState(initial = 0)
+    val achievementPoints by viewModel.achievementPoints.collectAsState(initial = 0)
+    val unlockedAchievementsCount by viewModel.unlockedAchievementsCount.collectAsState(initial = 0)
 
     Scaffold(
         topBar = {
@@ -55,6 +61,18 @@ fun MainScreen(
                         Icon(
                             Icons.Default.Search,
                             contentDescription = "Сезонные челленджи"
+                        )
+                    }
+                    IconButton(onClick = { onNavigateToAchievements() }) {
+                        Icon(
+                            Icons.Default.EmojiEvents,
+                            contentDescription = "Достижения"
+                        )
+                    }
+                    IconButton(onClick = { onSignOut() }) {
+                        Icon(
+                            Icons.Default.ExitToApp,
+                            contentDescription = "Выйти"
                         )
                     }
                 }
@@ -81,7 +99,10 @@ fun MainScreen(
             )
             StatsCard(
                 totalPoints = totalPoints,
-                completedChallenges = completedChallengesCount
+                completedChallenges = completedChallengesCount,
+                achievementPoints = achievementPoints,
+                unlockedAchievements = unlockedAchievementsCount,
+                onAchievementsClick = onNavigateToAchievements
             )
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
