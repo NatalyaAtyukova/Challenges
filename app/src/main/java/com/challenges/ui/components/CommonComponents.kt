@@ -1,12 +1,14 @@
 package com.challenges.ui.components
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -41,101 +43,35 @@ fun ErrorMessage(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ChallengeCard(
-    challenge: Challenge,
-    onFavoriteClick: () -> Unit,
-    onShareClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth()
-        ) {
-            Text(
-                text = challenge.title,
-                style = MaterialTheme.typography.headlineSmall
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = challenge.description,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AssistChip(
-                    onClick = { },
-                    label = { Text(getCategoryName(challenge.category)) }
-                )
-                Row {
-                    IconButton(onClick = onFavoriteClick) {
-                        Icon(
-                            imageVector = if (challenge.isFavorite) {
-                                Icons.Filled.Favorite
-                            } else {
-                                Icons.Outlined.FavoriteBorder
-                            },
-                            contentDescription = stringResource(R.string.favorites)
-                        )
-                    }
-                    IconButton(onClick = onShareClick) {
-                        Icon(
-                            imageVector = Icons.Filled.Share,
-                            contentDescription = stringResource(R.string.share)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
 @Composable
 fun CategoryChips(
-    categories: List<ChallengeCategory>,
-    selectedCategory: ChallengeCategory?,
-    onCategorySelected: (ChallengeCategory?) -> Unit,
+    selectedCategory: String?,
+    onCategorySelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp),
+            .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        FilterChip(
-            selected = selectedCategory == null,
-            onClick = { onCategorySelected(null) },
-            label = { Text(stringResource(R.string.all_categories)) }
-        )
-        categories.forEach { category ->
+        ChallengeCategory.values().forEach { category ->
             FilterChip(
-                selected = category == selectedCategory,
-                onClick = { onCategorySelected(category) },
-                label = { Text(getCategoryName(category)) }
+                selected = category.name == selectedCategory,
+                onClick = { onCategorySelected(category.name) },
+                label = { Text(getCategoryName(category.name)) }
             )
         }
     }
 }
 
 @Composable
-private fun getCategoryName(category: ChallengeCategory): String {
+fun getCategoryName(category: String): String {
     return when (category) {
-        ChallengeCategory.CONVERSATION -> stringResource(R.string.conversation)
-        ChallengeCategory.VIDEO -> stringResource(R.string.video)
-        ChallengeCategory.PUBLIC -> stringResource(R.string.public_speaking)
-        ChallengeCategory.DAILY -> stringResource(R.string.daily)
+        "CONVERSATION" -> stringResource(R.string.category_conversation)
+        "VIDEO" -> stringResource(R.string.category_video)
+        "PUBLIC" -> stringResource(R.string.category_public)
+        "DAILY" -> stringResource(R.string.category_daily)
+        else -> category
     }
 } 

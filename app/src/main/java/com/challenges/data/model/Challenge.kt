@@ -2,26 +2,41 @@ package com.challenges.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.TypeConverters
+import com.challenges.data.util.Converters
+import java.time.LocalDateTime
 
 @Entity(tableName = "challenges")
+@TypeConverters(Converters::class)
 data class Challenge(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val title: String,
     val description: String,
-    val category: ChallengeCategory,
-    val difficulty: ChallengeDifficulty,
+    val category: String,
+    val difficulty: String? = null,
+    val points: Int = 0, // Очки за выполнение
+    val isCustom: Boolean = false, // Является ли челлендж пользовательским
+    val isSeasonal: Boolean = false, // Является ли челлендж сезонным
+    val startDate: LocalDateTime? = null, // Дата начала для сезонных челленджей
+    val endDate: LocalDateTime? = null, // Дата окончания для сезонных челленджей
     val isFavorite: Boolean = false,
-    val isActive: Boolean = true,
-    val activationDate: Long = System.currentTimeMillis(),
-    val expirationDate: Long = System.currentTimeMillis() + 7 * 24 * 60 * 60 * 1000 // 7 days by default
+    val isCompleted: Boolean = false,
+    val notes: String? = null, // Заметки пользователя
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+    val updatedAt: LocalDateTime = LocalDateTime.now()
 )
 
 enum class ChallengeCategory {
     CONVERSATION, // Разговорные
     VIDEO,       // Видео
     PUBLIC,      // Публичные выступления
-    DAILY       // Ежедневные
+    DAILY,       // Ежедневные
+    CONTENT,     // Контент
+    TEACHING,    // Обучение
+    PODCAST,     // Подкасты
+    WRITING,     // Письмо
+    CONSULTING   // Консультации
 }
 
 enum class ChallengeDifficulty {
