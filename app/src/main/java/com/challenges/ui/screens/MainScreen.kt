@@ -20,6 +20,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.challenges.R
 import com.challenges.data.model.Challenge
 import com.challenges.ui.components.*
+import com.challenges.ui.viewmodel.AuthViewModel
 import com.challenges.ui.viewmodel.MainViewModel
 import com.challenges.ui.viewmodel.SortOption
 
@@ -27,6 +28,7 @@ import com.challenges.ui.viewmodel.SortOption
 @Composable
 fun MainScreen(
     viewModel: MainViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel(),
     onShareClick: (Challenge) -> Unit,
     onNavigateToAchievements: () -> Unit = {},
     onSignOut: () -> Unit = {}
@@ -44,11 +46,22 @@ fun MainScreen(
     val completedChallengesCount by viewModel.completedChallengesCount.collectAsState(initial = 0)
     val achievementPoints by viewModel.achievementPoints.collectAsState(initial = 0)
     val unlockedAchievementsCount by viewModel.unlockedAchievementsCount.collectAsState(initial = 0)
+    val authState by authViewModel.uiState.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
+                title = { 
+                    Column {
+                        Text(stringResource(R.string.app_name))
+                        if (authState.userName.isNotEmpty()) {
+                            Text(
+                                text = "Привет, ${authState.userName}!",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                },
                 actions = {
                     IconButton(onClick = { viewModel.toggleCustomChallenges() }) {
                         Icon(

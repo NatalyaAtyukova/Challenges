@@ -6,6 +6,7 @@ import com.challenges.data.dao.ChallengeDao
 import com.challenges.data.dao.AchievementDao
 import com.challenges.data.db.ChallengeDatabase
 import com.challenges.data.model.Challenge
+import com.challenges.data.preferences.UserPreferences
 import com.challenges.data.repository.ChallengeRepository
 import com.challenges.data.repository.AchievementRepository
 import dagger.Module
@@ -360,5 +361,11 @@ object AppModule {
         }
         
         return true
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserPreferences(@ApplicationContext context: Context): UserPreferences {
+        return UserPreferences(context)
     }
 } 

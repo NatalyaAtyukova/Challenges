@@ -1,6 +1,7 @@
 package com.challenges.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,9 +30,18 @@ fun AppNavigation(
 ) {
     val authState by authViewModel.uiState.collectAsState()
     
+    // Auto-login effect
+    LaunchedEffect(authState.isAuthenticated) {
+        if (authState.isAuthenticated) {
+            navController.navigate(AppScreen.MAIN.route) {
+                popUpTo(AppScreen.AUTH.route) { inclusive = true }
+            }
+        }
+    }
+    
     NavHost(
         navController = navController,
-        startDestination = if (authState.isAuthenticated) AppScreen.MAIN.route else AppScreen.AUTH.route
+        startDestination = AppScreen.AUTH.route
     ) {
         composable(AppScreen.AUTH.route) {
             AuthScreen(
