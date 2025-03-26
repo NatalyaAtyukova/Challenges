@@ -13,12 +13,14 @@ import com.challenges.data.model.Challenge
 import com.challenges.ui.screens.AchievementScreen
 import com.challenges.ui.screens.AuthScreen
 import com.challenges.ui.screens.MainScreen
+import com.challenges.ui.screens.MyChallengesScreen
 import com.challenges.ui.viewmodel.AuthViewModel
 
 enum class AppScreen(val route: String) {
     AUTH("auth"),
     MAIN("main"),
-    ACHIEVEMENTS("achievements")
+    ACHIEVEMENTS("achievements"),
+    MY_CHALLENGES("my_challenges")
 }
 
 @Composable
@@ -59,6 +61,9 @@ fun AppNavigation(
                 onNavigateToAchievements = {
                     navController.navigate(AppScreen.ACHIEVEMENTS.route)
                 },
+                onNavigateToMyChallenges = {
+                    navController.navigate(AppScreen.MY_CHALLENGES.route)
+                },
                 onSignOut = {
                     authViewModel.signOut()
                     navController.navigate(AppScreen.AUTH.route) {
@@ -70,6 +75,15 @@ fun AppNavigation(
         
         composable(AppScreen.ACHIEVEMENTS.route) {
             AchievementScreen()
+        }
+        
+        composable(AppScreen.MY_CHALLENGES.route) {
+            MyChallengesScreen(
+                onShareClick = onShareClick,
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
         }
     }
 } 

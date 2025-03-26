@@ -87,6 +87,9 @@ class MainViewModel @Inject constructor(
     val achievementPoints = achievementRepository.getAchievementPoints()
     val unlockedAchievementsCount = achievementRepository.getUnlockedAchievementsCount()
 
+    // Специальный поток для отображения только пользовательских челленджей
+    val customChallenges = repository.getCustomChallenges()
+
     private fun loadChallenges() {
         viewModelScope.launch {
             try {

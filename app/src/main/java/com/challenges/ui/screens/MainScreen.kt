@@ -31,6 +31,7 @@ fun MainScreen(
     authViewModel: AuthViewModel = hiltViewModel(),
     onShareClick: (Challenge) -> Unit,
     onNavigateToAchievements: () -> Unit = {},
+    onNavigateToMyChallenges: () -> Unit = {},
     onSignOut: () -> Unit = {}
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
@@ -63,11 +64,10 @@ fun MainScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.toggleCustomChallenges() }) {
+                    IconButton(onClick = { onNavigateToMyChallenges() }) {
                         Icon(
-                            if (showCustomChallenges) Icons.Default.Favorite
-                            else Icons.Default.FavoriteBorder,
-                            contentDescription = "Пользовательские челленджи"
+                            Icons.Default.Favorite,
+                            contentDescription = "Мои челленджи"
                         )
                     }
                     IconButton(onClick = { viewModel.toggleSeasonalChallenges() }) {

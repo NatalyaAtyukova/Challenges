@@ -68,11 +68,5 @@ fun CategoryChips(
 
 @Composable
 fun getCategoryName(category: String): String {
-    return when (category) {
-        "CONVERSATION" -> stringResource(R.string.category_conversation)
-        "VIDEO" -> stringResource(R.string.category_video)
-        "PUBLIC" -> stringResource(R.string.category_public)
-        "DAILY" -> stringResource(R.string.category_daily)
-        else -> category
-    }
+    return com.challenges.data.model.ChallengeCategory.getDisplayName(category)
 } 

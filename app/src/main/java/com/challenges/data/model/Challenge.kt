@@ -28,17 +28,33 @@ data class Challenge(
     val userName: String? = null // Имя пользователя, создавшего челлендж
 )
 
-enum class ChallengeCategory {
-    CONVERSATION, // Разговорные
-    VIDEO,       // Видео
-    PUBLIC,      // Публичные выступления
-    DAILY,       // Ежедневные
-    CONTENT,     // Контент
-    TEACHING,    // Обучение
-    PODCAST,     // Подкасты
-    WRITING,     // Письмо
-    CONSULTING,  // Консультации
-    COMMUNITY    // Пользовательские челленджи сообщества
+enum class ChallengeCategory(val value: String, val displayName: String) {
+    CONVERSATION("CONVERSATION", "Разговор"),
+    VIDEO("VIDEO", "Видео"),
+    PUBLIC("PUBLIC", "Публичное выступление"),
+    DAILY("DAILY", "Ежедневное"),
+    CONTENT("CONTENT", "Контент"),
+    TEACHING("TEACHING", "Обучение"),
+    PODCAST("PODCAST", "Подкаст"),
+    WRITING("WRITING", "Письмо"),
+    CONSULTING("CONSULTING", "Консультация"),
+    COMMUNITY("COMMUNITY", "Сообщество"),
+    FITNESS("FITNESS", "Фитнес"),
+    MINDFULNESS("MINDFULNESS", "Осознанность"),
+    SOCIAL("SOCIAL", "Социальное"),
+    CREATIVITY("CREATIVITY", "Творчество"),
+    LEARNING("LEARNING", "Обучение"),
+    OTHER("OTHER", "Другое");
+    
+    companion object {
+        fun fromString(value: String): ChallengeCategory {
+            return values().find { it.name == value || it.value == value } ?: OTHER
+        }
+        
+        fun getDisplayName(value: String): String {
+            return fromString(value).displayName
+        }
+    }
 }
 
 enum class ChallengeDifficulty {
