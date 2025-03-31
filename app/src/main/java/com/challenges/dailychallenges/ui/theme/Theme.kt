@@ -24,23 +24,43 @@ private val LightColors = lightColorScheme(
     error = Color(0xFFB00020)
 )
 
-private val DarkColors = darkColorScheme(
-    primary = Color(0xFFBB86FC),
-    onPrimary = Color.Black,
-    primaryContainer = Color(0xFF3700B3),
-    secondary = Color(0xFF03DAC6),
-    onSecondary = Color.Black,
-    secondaryContainer = Color(0xFF0F1B2B),
-    background = Color(0xFF121212),
-    surface = Color(0xFF121212),
-    error = Color(0xFFCF6679)
+private val NeonDarkColors = darkColorScheme(
+    primary = NeonBlue,
+    onPrimary = PureBlack,
+    primaryContainer = DeepDarkBlue,
+    onPrimaryContainer = NeonBlue,
+    
+    secondary = NeonPink,
+    onSecondary = PureBlack,
+    secondaryContainer = DarkBlue,
+    onSecondaryContainer = NeonPink,
+    
+    tertiary = NeonGreen,
+    onTertiary = PureBlack,
+    tertiaryContainer = DeepDarkBlue,
+    onTertiaryContainer = NeonGreen,
+    
+    background = BlackBlue,
+    onBackground = Color.White,
+    
+    surface = DeepDarkBlue,
+    onSurface = Color.White,
+    surfaceVariant = DarkBlue,
+    onSurfaceVariant = Color.LightGray,
+    
+    error = NeonYellow,
+    onError = PureBlack,
+    errorContainer = DeepDarkBlue,
+    onErrorContainer = NeonYellow,
+    
+    outline = NeonBlueAlpha70
 )
 
 @Composable
 fun ChallengesTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -48,7 +68,7 @@ fun ChallengesTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColors
+        darkTheme -> NeonDarkColors
         else -> LightColors
     }
 
@@ -56,7 +76,7 @@ fun ChallengesTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
+            window.statusBarColor = if (darkTheme) BlackBlue.toArgb() else colorScheme.primary.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }

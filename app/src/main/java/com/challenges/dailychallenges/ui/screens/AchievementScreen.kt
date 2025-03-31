@@ -16,6 +16,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.challenges.dailychallenges.data.model.Achievement
+import com.challenges.dailychallenges.ui.components.AppTopBar
+import com.challenges.dailychallenges.ui.components.BottomNavigation
 import com.challenges.dailychallenges.ui.components.LoadingSpinner
 import com.challenges.dailychallenges.ui.viewmodel.AchievementViewModel
 import androidx.navigation.NavController
@@ -30,9 +32,13 @@ fun AchievementScreen(
     
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Достижения") }
+            AppTopBar(
+                title = "Достижения",
+                onSyncClicked = null
             )
+        },
+        bottomBar = {
+            BottomNavigation(navController)
         }
     ) { padding ->
         if (uiState.isLoading) {

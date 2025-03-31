@@ -60,6 +60,8 @@ import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.challenges.dailychallenges.ui.animations.PulseAnimation
+import com.challenges.dailychallenges.ui.theme.NeonGreen
 
 private const val TAG = "MainScreen"
 
@@ -100,10 +102,15 @@ fun MainScreen(
             BottomNavigation(navController)
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddDialog = true }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Добавить челлендж")
+            PulseAnimation(pulseMagnitude = 0.03f) { animModifier ->
+                FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    modifier = animModifier,
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = MaterialTheme.colorScheme.onSecondary
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Добавить челлендж")
+                }
             }
         }
     ) { paddingValues ->
@@ -151,7 +158,8 @@ fun MainScreen(
                                 selectedChallenge = challenge
                                 showEditDialog = true
                                 isSearchActive = false
-                            }
+                            },
+                            index = uiState.challenges.indexOf(challenge)
                         )
                     }
                 }
@@ -234,7 +242,8 @@ fun MainScreen(
                                 onClick = {
                                     selectedChallenge = challenge
                                     showEditDialog = true
-                                }
+                                },
+                                index = filteredChallenges.indexOf(challenge)
                             )
                         }
                     }
@@ -293,7 +302,8 @@ fun MainScreen(
 @Composable
 fun ChallengeItem(
     challenge: Challenge,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    index: Int
 ) {
     Card(
         modifier = Modifier

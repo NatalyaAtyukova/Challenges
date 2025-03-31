@@ -300,4 +300,27 @@ class MainViewModel @Inject constructor(
             }
         }
     }
+
+    // Загрузка только завершенных челленджей
+    fun loadCompletedChallenges() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Загрузка завершенных челленджей")
+                _uiState.update { it.copy(isLoading = true) }
+                
+                firebaseRepository.getCompletedChallenges().collect { completedChallenges ->
+                    Log.d(TAG, "Получено ${completedChallenges.size} завершенных челленджей")
+                    _uiState.update { 
+                        it.copy(
+                            challenges = completedChallenges,
+                            isLoading = false
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Ошибка при загрузке завершенных челленджей: ${e.message}", e)
+                _uiState.update { it.copy(error = e.message, isLoading = false) }
+            }
+        }
+    }
 } 
