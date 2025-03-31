@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Challenges</string>
+    <string name="app_name">Challenges: Ежедневные челенджи</string>
     <string name="all_categories">All</string>
     <string name="category_conversation">Conversation</string>
     <string name="category_video">Video</string>
@@ -30,4 +30,46 @@
     <string name="cancel">Cancel</string>
     <string name="notes">Notes</string>
     <string name="save">Save</string>
+    <string name="community">Сообщество</string>
+    <string name="community_challenges">Челенджи сообщества</string>
+    <string name="publish_challenge">Опубликовать челлендж</string>
+    <string name="like">Нравится</string>
+    <string name="unlike">Убрать лайк</string>
+    <string name="comment">Комментарий</string>
+    <string name="comments">Комментарии</string>
+    <string name="add_comment">Добавить комментарий</string>
+    <string name="report">Пожаловаться</string>
+    <string name="report_reason">Причина жалобы</string>
+    <string name="report_sent">Жалоба отправлена</string>
+    <string name="sort_by">Сортировать по</string>
+    <string name="sort_by_date">Дате</string>
+    <string name="sort_by_likes">Лайкам</string>
+    <string name="sort_by_comments">Комментариям</string>
+    <string name="no_challenges">Нет доступных челленджей</string>
+    <string name="no_comments">Нет комментариев</string>
+    <string name="error_loading">Ошибка загрузки</string>
+    <string name="error_publishing">Ошибка публикации</string>
+    <string name="error_commenting">Ошибка комментирования</string>
+    <string name="error_liking">Ошибка лайка</string>
+    <string name="error_reporting">Ошибка отправки жалобы</string>
+    <string name="sign_in">Войти</string>
+    <string name="sign_up">Регистрация</string>
+    <string name="email">Email</string>
+    <string name="password">Пароль</string>
+    <string name="already_have_account">Уже есть аккаунт? Войти</string>
+    <string name="dont_have_account">Нет аккаунта? Зарегистрироваться</string>
+    <string name="auth_error">Ошибка аутентификации</string>
+    <string name="auth_success">Успешная аутентификация</string>
+    <string name="profile">Профиль</string>
+    <string name="name">Имя</string>
+    <string name="no_name">Без имени</string>
+    <string name="edit_name">Изменить имя</string>
+    <string name="change_photo">Изменить фото</string>
+    <string name="delete_photo">Удалить фото</string>
+    <string name="delete_photo_confirmation">Вы уверены, что хотите удалить фото профиля?</string>
+    <string name="published">Опубликовано</string>
+    <string name="sign_out">Выйти</string>
+    <string name="challenge_description">%1$s</string>
+    <string name="user_name">%1$s</string>
+    <string name="comment_text">%1$s</string>
 </resources>

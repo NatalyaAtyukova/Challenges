@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "challenges-app-placeholder",
-    "storage_bucket": "challenges-app-placeholder.appspot.com"
+    "project_number": "1028156413327",
+    "project_id": "challenges-60789",
+    "storage_bucket": "challenges-60789.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:1028156413327:android:05f84bd89efcd0d61527fa",
         "android_client_info": {
-          "package_name": "com.challenges"
+          "package_name": "com.challenges.dailychallenges"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "placeholder_api_key"
+          "current_key": "AIzaSyDlDO7sU9zBBRx_IFr89y-qVvdZtGVA3Vo"
         }
       ],
       "services": {
@@ -26,4 +26,4 @@
     }
   ],
   "configuration_version": "1"
-} 
+}

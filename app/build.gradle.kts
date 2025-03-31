@@ -3,15 +3,15 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
-    alias(libs.plugins.google.services)
+    id("com.google.gms.google-services")
 }
 
 android {
-    namespace = "com.challenges"
+    namespace = "com.challenges.dailychallenges"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.challenges"
+        applicationId = "com.challenges.dailychallenges"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -89,8 +89,17 @@ dependencies {
     implementation(libs.compose.material.icons)
     
     // Firebase
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.bundles.firebase)
+    implementation(platform("com.google.firebase:firebase-bom:32.7.2"))
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage")
+    
+    // SafetyNet for reCAPTCHA verification
+    implementation("com.google.android.gms:play-services-safetynet:18.0.1")
+    
+    // Coil for image loading
+    implementation("io.coil-kt:coil-compose:2.5.0")
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.junit.ext)
