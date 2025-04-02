@@ -9,12 +9,20 @@ private const val TAG = "FirebaseHelper"
 
 object FirebaseHelper {
     
+    private var isInitialized = false
+    
     /**
      * Инициализирует Firestore с правильными настройками и обеспечивает
      * правильную работу с коллекцией челленджей
      */
     fun initFirestore() {
+        if (isInitialized) {
+            Log.d(TAG, "Firestore уже был инициализирован")
+            return
+        }
+        
         try {
+            Log.d(TAG, "Начало инициализации Firestore")
             val firestore = FirebaseFirestore.getInstance()
             
             // Настраиваем Firestore для работы в оффлайн режиме
@@ -25,7 +33,8 @@ object FirebaseHelper {
             
             firestore.firestoreSettings = settings
             
-            Log.d(TAG, "Firestore инициализирован с настройками кэша")
+            isInitialized = true
+            Log.d(TAG, "Firestore успешно инициализирован с настройками кэша")
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка при инициализации Firestore: ${e.message}", e)
         }
@@ -35,7 +44,13 @@ object FirebaseHelper {
      * Проверяет наличие коллекции "challenges" и создает ее, если она не существует
      */
     suspend fun ensureChallengesCollectionExists() {
+        if (!isInitialized) {
+            Log.w(TAG, "Вызов ensureChallengesCollectionExists до инициализации Firestore, инициализируем сейчас")
+            initFirestore()
+        }
+        
         try {
+            Log.d(TAG, "Проверка существования коллекции challenges")
             val firestore = FirebaseFirestore.getInstance()
             val challengesCollection = firestore.collection("challenges")
             

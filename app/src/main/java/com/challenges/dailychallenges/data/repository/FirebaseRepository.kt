@@ -7,7 +7,9 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.tasks.await
@@ -30,41 +32,86 @@ class FirebaseRepository @Inject constructor(
     }
 
     // Основной метод получения всех челленджей
-    fun getAllChallenges(): Flow<List<Challenge>> = flow {
+    fun getAllChallenges(): Flow<List<Challenge>> = callbackFlow {
+        val userId = getCurrentUserId()
+        Log.d(TAG, "Запрос челленджей для пользователя: $userId")
+        
+        // Сначала отправим пустой список, чтобы избежать блокировки потока
+        send(emptyList<Challenge>())
+        
+        val subscription = firestore.collection(CHALLENGES_COLLECTION)
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Ошибка при получении челленджей: ${error.message}", error)
+                    trySend(emptyList<Challenge>())
+                    return@addSnapshotListener
+                }
+
+                if (snapshot == null) {
+                    Log.w(TAG, "Пустой snapshot из Firestore")
+                    trySend(emptyList<Challenge>())
+                    return@addSnapshotListener
+                }
+                
+                try {
+                    val challenges = snapshot.toObjects(Challenge::class.java)
+                    Log.d(TAG, "Получено ${challenges.size} челленджей из Firestore")
+                    trySend(challenges)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Ошибка при парсинге челленджей: ${e.message}", e)
+                    trySend(emptyList<Challenge>())
+                }
+            }
+
+        awaitClose { 
+            Log.d(TAG, "Закрытие подписки на челленджи")
+            subscription.remove() 
+        }
+    }.flowOn(Dispatchers.IO)
+
+    // Метод для получения челленджей через явный запрос get() (не real-time)
+    fun getAllChallengesOneTime(): Flow<List<Challenge>> = flow {
         try {
             val userId = getCurrentUserId()
+            Log.d(TAG, "Получение челленджей одноразовым запросом для пользователя: $userId")
+            
             val snapshot = firestore.collection(CHALLENGES_COLLECTION)
                 .whereEqualTo("userId", userId)
-                .orderBy("createdDate", Query.Direction.DESCENDING)
                 .get()
                 .await()
             
             val challenges = snapshot.toObjects(Challenge::class.java)
-            Log.d(TAG, "Получено ${challenges.size} челленджей из Firestore")
+            Log.d(TAG, "Получено ${challenges.size} челленджей через одноразовый запрос")
             emit(challenges)
         } catch (e: Exception) {
-            Log.e(TAG, "Ошибка при получении челленджей: ${e.message}", e)
-            emit(emptyList())
+            Log.e(TAG, "Ошибка при получении челленджей через одноразовый запрос: ${e.message}", e)
+            emit(emptyList<Challenge>())
         }
     }.flowOn(Dispatchers.IO)
 
     // Получение челленджей по категории
-    fun getChallengesByCategory(category: String): Flow<List<Challenge>> = flow {
-        try {
-            val userId = getCurrentUserId()
-            val snapshot = firestore.collection(CHALLENGES_COLLECTION)
-                .whereEqualTo("userId", userId)
-                .whereEqualTo("category", category)
-                .get()
-                .await()
-            
-            val challenges = snapshot.toObjects(Challenge::class.java)
-            Log.d(TAG, "Получено ${challenges.size} челленджей категории $category из Firestore")
-            emit(challenges)
-        } catch (e: Exception) {
-            Log.e(TAG, "Ошибка при получении челленджей категории $category: ${e.message}", e)
-            emit(emptyList())
-        }
+    fun getChallengesByCategory(category: String): Flow<List<Challenge>> = callbackFlow {
+        val userId = getCurrentUserId()
+        // Отправим пустой список в начале для предотвращения блокировки
+        send(emptyList<Challenge>())
+        
+        val subscription = firestore.collection(CHALLENGES_COLLECTION)
+            .whereEqualTo("userId", userId)
+            .whereEqualTo("category", category)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Ошибка при получении челленджей категории $category: ${error.message}", error)
+                    trySend(emptyList<Challenge>())
+                    return@addSnapshotListener
+                }
+
+                val challenges = snapshot?.toObjects(Challenge::class.java) ?: emptyList()
+                Log.d(TAG, "Получено ${challenges.size} челленджей категории $category из Firestore")
+                trySend(challenges)
+            }
+
+        awaitClose { subscription.remove() }
     }.flowOn(Dispatchers.IO)
 
     // Получение активных челленджей
@@ -82,7 +129,7 @@ class FirebaseRepository @Inject constructor(
             emit(challenges)
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка при получении активных челленджей: ${e.message}", e)
-            emit(emptyList())
+            emit(emptyList<Challenge>())
         }
     }.flowOn(Dispatchers.IO)
 
@@ -102,7 +149,7 @@ class FirebaseRepository @Inject constructor(
             emit(challenges)
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка при получении активных челленджей категории $category: ${e.message}", e)
-            emit(emptyList())
+            emit(emptyList<Challenge>())
         }
     }.flowOn(Dispatchers.IO)
 
@@ -121,7 +168,7 @@ class FirebaseRepository @Inject constructor(
             emit(challenges)
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка при получении завершенных челленджей: ${e.message}", e)
-            emit(emptyList())
+            emit(emptyList<Challenge>())
         }
     }.flowOn(Dispatchers.IO)
 
@@ -159,7 +206,7 @@ class FirebaseRepository @Inject constructor(
             emit(challenges)
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка при получении избранных челленджей: ${e.message}", e)
-            emit(emptyList())
+            emit(emptyList<Challenge>())
         }
     }.flowOn(Dispatchers.IO)
 
@@ -178,7 +225,7 @@ class FirebaseRepository @Inject constructor(
             emit(challenges)
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка при получении пользовательских челленджей: ${e.message}", e)
-            emit(emptyList())
+            emit(emptyList<Challenge>())
         }
     }.flowOn(Dispatchers.IO)
 
@@ -202,26 +249,31 @@ class FirebaseRepository @Inject constructor(
     }
 
     // Поиск челленджей по запросу
-    fun searchChallenges(query: String): Flow<List<Challenge>> = flow {
-        try {
-            val userId = getCurrentUserId()
-            val allChallenges = firestore.collection(CHALLENGES_COLLECTION)
-                .whereEqualTo("userId", userId)
-                .get()
-                .await()
-                .toObjects(Challenge::class.java)
-            
-            val filteredChallenges = allChallenges.filter { challenge ->
-                challenge.title.contains(query, ignoreCase = true) || 
-                challenge.description.contains(query, ignoreCase = true)
+    fun searchChallenges(query: String): Flow<List<Challenge>> = callbackFlow {
+        val userId = getCurrentUserId()
+        // Отправим пустой список в начале для предотвращения блокировки
+        send(emptyList<Challenge>())
+        
+        val subscription = firestore.collection(CHALLENGES_COLLECTION)
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Ошибка при поиске челленджей: ${error.message}", error)
+                    trySend(emptyList<Challenge>())
+                    return@addSnapshotListener
+                }
+
+                val allChallenges = snapshot?.toObjects(Challenge::class.java) ?: emptyList()
+                val filteredChallenges = allChallenges.filter { challenge ->
+                    challenge.title.contains(query, ignoreCase = true) || 
+                    challenge.description.contains(query, ignoreCase = true)
+                }
+                
+                Log.d(TAG, "Найдено ${filteredChallenges.size} челленджей по запросу '$query'")
+                trySend(filteredChallenges)
             }
-            
-            Log.d(TAG, "Найдено ${filteredChallenges.size} челленджей по запросу '$query'")
-            emit(filteredChallenges)
-        } catch (e: Exception) {
-            Log.e(TAG, "Ошибка при поиске челленджей: ${e.message}", e)
-            emit(emptyList())
-        }
+
+        awaitClose { subscription.remove() }
     }.flowOn(Dispatchers.IO)
 
     // Получение челленджа по ID
@@ -250,6 +302,17 @@ class FirebaseRepository @Inject constructor(
                 challenge
             }
             
+            // Проверяем, существует ли уже челлендж с таким ID
+            val existingDoc = firestore.collection(CHALLENGES_COLLECTION)
+                .document(challenge.id)
+                .get()
+                .await()
+            
+            if (existingDoc.exists()) {
+                Log.w(TAG, "Челлендж с ID ${challenge.id} уже существует")
+                return
+            }
+            
             firestore.collection(CHALLENGES_COLLECTION)
                 .document(challenge.id)
                 .set(challengeWithUser)
@@ -262,9 +325,23 @@ class FirebaseRepository @Inject constructor(
         }
     }
 
+    // Алиас для insertChallenge, используемый в ViewModel
+    suspend fun addChallenge(challenge: Challenge) = insertChallenge(challenge)
+
     // Обновление челленджа
     suspend fun updateChallenge(challenge: Challenge) {
         try {
+            // Проверяем, существует ли челлендж
+            val existingDoc = firestore.collection(CHALLENGES_COLLECTION)
+                .document(challenge.id)
+                .get()
+                .await()
+            
+            if (!existingDoc.exists()) {
+                Log.w(TAG, "Челлендж с ID ${challenge.id} не существует")
+                return
+            }
+            
             firestore.collection(CHALLENGES_COLLECTION)
                 .document(challenge.id)
                 .set(challenge)
@@ -280,23 +357,28 @@ class FirebaseRepository @Inject constructor(
     // Обновление статуса выполнения
     suspend fun updateCompletionStatus(id: String, completed: Boolean, completedDate: Long?) {
         try {
-            val userId = getCurrentUserId()
+            // Проверяем, существует ли челлендж
+            val existingDoc = firestore.collection(CHALLENGES_COLLECTION)
+                .document(id)
+                .get()
+                .await()
+            
+            if (!existingDoc.exists()) {
+                Log.w(TAG, "Челлендж с ID $id не существует")
+                return
+            }
+            
             val updates = hashMapOf<String, Any>(
                 "completed" to completed
             )
             
             if (completedDate != null) {
                 updates["completedDate"] = completedDate
-            } else {
-                // Если completedDate равен null и челлендж не выполнен, удаляем поле
-                if (!completed) {
-                    updates["completedDate"] = FieldValue.delete()
-                }
+            } else if (!completed) {
+                updates["completedDate"] = FieldValue.delete()
             }
             
             firestore.collection(CHALLENGES_COLLECTION)
-                .document(userId)
-                .collection("userChallenges")
                 .document(id)
                 .update(updates)
                 .await()
@@ -311,6 +393,17 @@ class FirebaseRepository @Inject constructor(
     // Удаление челленджа
     suspend fun deleteChallenge(challenge: Challenge) {
         try {
+            // Проверяем, существует ли челлендж
+            val existingDoc = firestore.collection(CHALLENGES_COLLECTION)
+                .document(challenge.id)
+                .get()
+                .await()
+            
+            if (!existingDoc.exists()) {
+                Log.w(TAG, "Челлендж с ID ${challenge.id} не существует")
+                return
+            }
+            
             firestore.collection(CHALLENGES_COLLECTION)
                 .document(challenge.id)
                 .delete()
@@ -407,20 +500,24 @@ class FirebaseRepository @Inject constructor(
         }
     }
     
-    // Получение количества выполненных челленджей по сложности
-    suspend fun getCompletedChallengesByDifficulty(difficulty: String): Int {
+    // Получение количества выполненных челленджей по количеству очков
+    suspend fun getCompletedChallengesByPoints(minPoints: Int, maxPoints: Int): Int {
         return try {
             val userId = getCurrentUserId()
             val snapshot = firestore.collection(CHALLENGES_COLLECTION)
                 .whereEqualTo("userId", userId)
-                .whereEqualTo("difficulty", difficulty)
                 .whereEqualTo("completed", true)
                 .get()
                 .await()
             
-            snapshot.size()
+            // Фильтруем вручную, так как Firebase не поддерживает сложные запросы с диапазонами
+            val count = snapshot.toObjects(Challenge::class.java)
+                .count { it.points in minPoints..maxPoints }
+            
+            Log.d(TAG, "Количество выполненных челленджей с $minPoints-$maxPoints очками: $count")
+            count
         } catch (e: Exception) {
-            Log.e(TAG, "Ошибка при получении количества выполненных челленджей по сложности: ${e.message}", e)
+            Log.e(TAG, "Ошибка при получении количества выполненных челленджей по очкам: ${e.message}", e)
             0
         }
     }
@@ -435,6 +532,117 @@ class FirebaseRepository @Inject constructor(
                 .await()
         } catch (e: Exception) {
             Log.e(TAG, "Ошибка при обновлении общего количества очков: ${e.message}", e)
+        }
+    }
+
+    // Получение количества выполненных челленджей по сложности (устарело, использовать getCompletedChallengesByPoints)
+    @Deprecated("Используйте getCompletedChallengesByPoints вместо этого метода")
+    suspend fun getCompletedChallengesByDifficulty(difficulty: String): Int {
+        return try {
+            val userId = getCurrentUserId()
+            val snapshot = firestore.collection(CHALLENGES_COLLECTION)
+                .whereEqualTo("userId", userId)
+                .whereEqualTo("difficulty", difficulty)
+                .whereEqualTo("completed", true)
+                .get()
+                .await()
+            
+            val count = snapshot.size()
+            Log.d(TAG, "Количество выполненных челленджей по сложности $difficulty: $count")
+            count
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка при получении количества выполненных челленджей по сложности: ${e.message}", e)
+            0
+        }
+    }
+
+    // Получение челленджей в определенном диапазоне очков
+    fun getChallengesByPointsRange(minPoints: Int, maxPoints: Int): Flow<List<Challenge>> = flow {
+        try {
+            val userId = getCurrentUserId()
+            if (userId.isEmpty()) {
+                Log.e(TAG, "Пользователь не аутентифицирован")
+                emit(emptyList<Challenge>())
+                return@flow
+            }
+            
+            Log.d(TAG, "Получение челленджей в диапазоне очков от $minPoints до $maxPoints")
+            
+            // Из-за ограничений Firestore на сложные запросы с диапазонами, мы получаем все челленджи 
+            // и фильтруем их вручную
+            val snapshot = firestore.collection(CHALLENGES_COLLECTION)
+                .whereEqualTo("userId", userId)
+                .orderBy("createdDate", Query.Direction.DESCENDING)
+                .get()
+                .await()
+            
+            val challenges = snapshot.toObjects(Challenge::class.java)
+                .filter { it.points in minPoints..maxPoints }
+            
+            Log.d(TAG, "Получено ${challenges.size} челленджей в диапазоне очков от $minPoints до $maxPoints")
+            emit(challenges)
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка при получении челленджей по диапазону очков: ${e.message}", e)
+            emit(emptyList<Challenge>())
+        }
+    }.flowOn(Dispatchers.IO)
+
+    // Получение всех завершенных челленджей с использованием callback
+    fun getAllCompletedChallenges(callback: (Result<List<Challenge>>) -> Unit) {
+        try {
+            val userId = getCurrentUserId()
+            if (userId.isEmpty()) {
+                Log.e(TAG, "Ошибка при получении завершенных челленджей: пользователь не авторизован")
+                callback(Result.failure(IllegalStateException("Пользователь не авторизован")))
+                return
+            }
+            
+            firestore.collection(CHALLENGES_COLLECTION)
+                .whereEqualTo("userId", userId)
+                .whereEqualTo("completed", true)
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    try {
+                        val challenges = snapshot.toObjects(Challenge::class.java)
+                        Log.d(TAG, "Получено ${challenges.size} завершенных челленджей для вычисления очков")
+                        callback(Result.success(challenges))
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Ошибка при обработке данных завершенных челленджей: ${e.message}", e)
+                        callback(Result.failure(e))
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Ошибка при получении завершенных челленджей: ${e.message}", e)
+                    callback(Result.failure(e))
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Непредвиденная ошибка при получении завершенных челленджей: ${e.message}", e)
+            callback(Result.failure(e))
+        }
+    }
+    
+    // Синхронизация челленджей с Firebase
+    suspend fun syncChallenges() {
+        try {
+            val userId = getCurrentUserId()
+            if (userId.isEmpty()) {
+                Log.e(TAG, "Ошибка при синхронизации челленджей: пользователь не авторизован")
+                return
+            }
+            
+            Log.d(TAG, "Начало синхронизации челленджей")
+            
+            // Получаем все челленджи из Firestore
+            val snapshot = firestore.collection(CHALLENGES_COLLECTION)
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+            
+            val challenges = snapshot.toObjects(Challenge::class.java)
+            Log.d(TAG, "Синхронизировано ${challenges.size} челленджей")
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка при синхронизации челленджей: ${e.message}", e)
+            throw e
         }
     }
 } 

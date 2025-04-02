@@ -43,7 +43,7 @@ fun AchievementScreen(
     ) { padding ->
         if (uiState.isLoading) {
             LoadingSpinner()
-        } else if (uiState.error.isNotEmpty()) {
+        } else if (uiState.error != null && uiState.error.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -51,7 +51,7 @@ fun AchievementScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = uiState.error,
+                    text = uiState.error ?: "",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyLarge
                 )

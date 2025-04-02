@@ -141,28 +141,6 @@ class AchievementRepository @Inject constructor(
         }
     }
 
-    // Проверка и обновление достижений, связанных с сложностью челленджей
-    suspend fun checkDifficultyCompletion(difficulty: String) = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "Проверка достижений по сложности: $difficulty")
-            
-            // Получаем количество завершенных челленджей данной сложности
-            val completedCount = firebaseRepository.getCompletedChallengesByDifficulty(difficulty)
-            
-            // Получаем все достижения типа DIFFICULTY_COMPLETED
-            val achievementsFlow = getAllAchievements()
-            val achievements = achievementsFlow.firstOrNull() ?: emptyList()
-            
-            achievements.forEach { achievement ->
-                if (achievement.condition == AchievementType.DIFFICULTY_COMPLETED.value && achievement.difficulty == difficulty) {
-                    updateAchievementProgress(achievement.id, completedCount)
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Ошибка при проверке достижений по сложности: ${e.message}", e)
-        }
-    }
-
     // Проверка и обновление достижений, связанных с созданием пользовательских челленджей
     suspend fun checkCustomChallengesCreation() = withContext(Dispatchers.IO) {
         try {
@@ -212,7 +190,7 @@ class AchievementRepository @Inject constructor(
                 threshold = 3
             ),
             
-            // Достижения по сложности
+            // Достижения по сложности (устарело)
             Achievement(
                 id = UUID.randomUUID().toString(),
                 title = "Warming Up",
@@ -267,6 +245,38 @@ class AchievementRepository @Inject constructor(
                 isUnlocked = false,
                 condition = AchievementType.CREATED_CHALLENGES.value,
                 threshold = 5
+            ),
+            
+            // Новые достижения по очкам
+            Achievement(
+                id = UUID.randomUUID().toString(),
+                title = "Points Enthusiast",
+                description = "Complete challenges worth 50+ points in total",
+                iconName = "badge",
+                points = 20,
+                isUnlocked = false,
+                condition = AchievementType.POINTS_LOW.value,
+                threshold = 50
+            ),
+            Achievement(
+                id = UUID.randomUUID().toString(),
+                title = "Points Expert",
+                description = "Complete challenges worth 100+ points in total",
+                iconName = "star",
+                points = 30,
+                isUnlocked = false,
+                condition = AchievementType.POINTS_MEDIUM.value,
+                threshold = 100
+            ),
+            Achievement(
+                id = UUID.randomUUID().toString(),
+                title = "Points Master",
+                description = "Complete challenges worth 200+ points in total",
+                iconName = "trophy",
+                points = 50,
+                isUnlocked = false,
+                condition = AchievementType.POINTS_HIGH.value,
+                threshold = 200
             )
         )
     }
@@ -340,4 +350,206 @@ class AchievementRepository @Inject constructor(
             emit(emptyList())
         }
     }.flowOn(Dispatchers.IO)
+
+    // Проверка достижений по количеству очков выполненного челленджа 
+    fun checkPointsCompletion(points: Int) {
+        Log.d("AchievementRepository", "Checking points completion for points: $points")
+        
+        try {
+            // Get completed challenges with points
+            firebaseRepository.getAllCompletedChallenges { result ->
+                if (result.isSuccess) {
+                    val completedChallenges = result.getOrNull() ?: emptyList()
+                    val totalPoints = completedChallenges.sumOf { it.points }
+                    
+                    Log.d("AchievementRepository", "Total points from completed challenges: $totalPoints")
+                    
+                    // Check for high points completion (200+)
+                    if (totalPoints >= 200) {
+                        val achievement = Achievement(
+                            title = "Points Master",
+                            description = "Complete challenges worth 200+ points in total",
+                            iconName = "trophy",
+                            points = 50,
+                            condition = AchievementType.POINTS_HIGH.value
+                        )
+                        unlockAchievement(achievement)
+                    }
+                    
+                    // Check for medium points completion (100-199)
+                    if (totalPoints >= 100) {
+                        val achievement = Achievement(
+                            title = "Points Expert",
+                            description = "Complete challenges worth 100+ points in total",
+                            iconName = "star",
+                            points = 30,
+                            condition = AchievementType.POINTS_MEDIUM.value
+                        )
+                        unlockAchievement(achievement)
+                    }
+                    
+                    // Check for low points completion (1-99)
+                    if (totalPoints >= 50) {
+                        val achievement = Achievement(
+                            title = "Points Enthusiast",
+                            description = "Complete challenges worth 50+ points in total",
+                            iconName = "badge",
+                            points = 20,
+                            condition = AchievementType.POINTS_LOW.value
+                        )
+                        unlockAchievement(achievement)
+                    }
+                } else {
+                    val exception = result.exceptionOrNull()
+                    Log.e("AchievementRepository", "Failed to get completed challenges: ${exception?.message}", exception)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("AchievementRepository", "Error in checkPointsCompletion: ${e.message}", e)
+        }
+    }
+    
+    // Сохраняем для обратной совместимости
+    @Deprecated("Используйте checkPointsCompletion вместо этого метода")
+    suspend fun checkDifficultyCompletion(difficulty: String) {
+        Log.d(TAG, "Проверка достижений по сложности: $difficulty (устарело)")
+        // Просто делегируем в новый метод с соответствующим диапазоном очков
+        when (difficulty.uppercase()) {
+            "HARD" -> checkPointsCompletion(200)
+            "MEDIUM" -> checkPointsCompletion(100)
+            "EASY" -> checkPointsCompletion(50)
+            else -> checkPointsCompletion(10)
+        }
+    }
+
+    // Разблокировка достижения по его условию
+    private fun unlockAchievement(achievement: Achievement) {
+        try {
+            val userId = firebaseRepository.getCurrentUserId()
+            if (userId.isEmpty()) {
+                Log.e(TAG, "Не удалось разблокировать достижение: пользователь не авторизован")
+                return
+            }
+            
+            // Проверяем, существует ли уже достижение с таким условием
+            firestore.collection(ACHIEVEMENTS_COLLECTION)
+                .document(userId)
+                .collection("userAchievements")
+                .whereEqualTo("condition", achievement.condition)
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    if (snapshot.isEmpty) {
+                        // Если достижения с таким условием нет, создаем новое
+                        val newAchievement = achievement.copy(
+                            id = UUID.randomUUID().toString(),
+                            isUnlocked = true,
+                            unlockedAt = System.currentTimeMillis(),
+                            progress = achievement.threshold
+                        )
+                        
+                        firestore.collection(ACHIEVEMENTS_COLLECTION)
+                            .document(userId)
+                            .collection("userAchievements")
+                            .document(newAchievement.id)
+                            .set(newAchievement)
+                            .addOnSuccessListener {
+                                Log.d(TAG, "Разблокировано новое достижение: ${newAchievement.title}")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e(TAG, "Ошибка при сохранении нового достижения: ${e.message}", e)
+                            }
+                    } else {
+                        // Если достижение уже существует, проверяем, разблокировано ли оно
+                        val existingAchievement = snapshot.documents.first().toObject(Achievement::class.java)
+                        if (existingAchievement != null && !existingAchievement.isUnlocked) {
+                            // Если не разблокировано, обновляем его
+                            val updates = mapOf(
+                                "isUnlocked" to true,
+                                "unlockedAt" to System.currentTimeMillis(),
+                                "progress" to existingAchievement.threshold
+                            )
+                            
+                            firestore.collection(ACHIEVEMENTS_COLLECTION)
+                                .document(userId)
+                                .collection("userAchievements")
+                                .document(existingAchievement.id)
+                                .update(updates)
+                                .addOnSuccessListener {
+                                    Log.d(TAG, "Разблокировано существующее достижение: ${existingAchievement.title}")
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.e(TAG, "Ошибка при обновлении существующего достижения: ${e.message}", e)
+                                }
+                        } else {
+                            Log.d(TAG, "Достижение уже разблокировано")
+                        }
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Ошибка при проверке существующего достижения: ${e.message}", e)
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка при разблокировке достижения: ${e.message}", e)
+        }
+    }
+    
+    // Синхронизация достижений с Firebase
+    suspend fun syncAchievements() {
+        try {
+            val userId = firebaseRepository.getCurrentUserId()
+            if (userId.isEmpty()) {
+                Log.e(TAG, "Ошибка при синхронизации достижений: пользователь не авторизован")
+                return
+            }
+            
+            Log.d(TAG, "Начало синхронизации достижений")
+            
+            // Получаем все достижения из Firestore
+            val snapshot = firestore.collection(ACHIEVEMENTS_COLLECTION)
+                .document(userId)
+                .collection("userAchievements")
+                .get()
+                .await()
+            
+            val achievements = snapshot.toObjects(Achievement::class.java)
+            
+            // Проверяем, если нет достижений, создаем дефолтные
+            if (achievements.isEmpty()) {
+                val defaultAchievements = createDefaultAchievements()
+                for (achievement in defaultAchievements) {
+                    insertAchievement(achievement)
+                }
+                Log.d(TAG, "Инициализировано ${defaultAchievements.size} достижений")
+            } else {
+                Log.d(TAG, "Синхронизировано ${achievements.size} достижений")
+            }
+            
+            // Обновим прогресс достижений
+            checkAllAchievements()
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка при синхронизации достижений: ${e.message}", e)
+            throw e
+        }
+    }
+    
+    // Проверка всех типов достижений
+    private suspend fun checkAllAchievements() {
+        try {
+            // Проверяем достижения по категориям
+            val categories = listOf("CONVERSATION", "VIDEO", "PUBLIC", "CONTENT", "PODCAST", "WRITING")
+            for (category in categories) {
+                checkCategoryCompletion(category)
+            }
+            
+            // Проверяем достижения по созданию пользовательских челленджей
+            checkCustomChallengesCreation()
+            
+            // Проверяем достижения по очкам
+            checkPointsCompletion(0) // Передаем 0, так как внутри метода будет расчет всех очков
+            
+            Log.d(TAG, "Все типы достижений проверены")
+        } catch (e: Exception) {
+            Log.e(TAG, "Ошибка при проверке достижений: ${e.message}", e)
+        }
+    }
 } 

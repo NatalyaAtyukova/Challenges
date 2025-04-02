@@ -49,27 +49,16 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 fun EditChallengeDialog(
     challenge: Challenge,
     onDismiss: () -> Unit,
-    onSaveChallenge: (Challenge) -> Unit,
-    onDeleteChallenge: (Challenge) -> Unit,
-    onToggleCompleted: (Challenge) -> Unit
+    onConfirm: (title: String, description: String, category: String, points: Int) -> Unit,
+    onDelete: () -> Unit
 ) {
     var title by remember { mutableStateOf(challenge.title) }
     var description by remember { mutableStateOf(challenge.description) }
     var category by remember { mutableStateOf(challenge.category) }
-    var difficulty by remember { mutableStateOf(challenge.difficulty) }
+    var points by remember { mutableStateOf(challenge.points) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var isCompleted by remember { mutableStateOf(challenge.completed) }
     var expanded by remember { mutableStateOf(false) }
-    
-    val difficultyOptions = listOf("EASY", "MEDIUM", "HARD")
-    var difficultyIndex by remember { 
-        mutableStateOf(when(challenge.difficulty) {
-            "EASY" -> 0
-            "MEDIUM" -> 1
-            "HARD" -> 2
-            else -> 0
-        }) 
-    }
     
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -155,7 +144,7 @@ fun EditChallengeDialog(
                             contentDescription = "Выбрать категорию"
                         )
                     },
-                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    interactionSource = remember { MutableInteractionSource() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { expanded = true }
@@ -179,35 +168,17 @@ fun EditChallengeDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = "Сложность: ${difficulty}",
+                    text = "Баллы: $points",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 
                 Slider(
-                    value = difficultyIndex.toFloat(),
-                    onValueChange = { 
-                        difficultyIndex = it.roundToInt()
-                        difficulty = difficultyOptions[difficultyIndex]
-                    },
-                    valueRange = 0f..2f,
-                    steps = 1,
+                    value = points.toFloat(),
+                    onValueChange = { points = it.toInt() },
+                    valueRange = 10f..100f,
+                    steps = 9,
                     modifier = Modifier.fillMaxWidth()
                 )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = isCompleted,
-                        onCheckedChange = { isCompleted = it }
-                    )
-                    
-                    Spacer(modifier = Modifier.width(8.dp))
-                    
-                    Text("Челлендж выполнен")
-                }
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
@@ -215,23 +186,17 @@ fun EditChallengeDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onDismiss) {
+                    TextButton(
+                        onClick = onDismiss
+                    ) {
                         Text("Отмена")
                     }
                     
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
                     Button(
                         onClick = {
-                            if (title.isNotBlank() && description.isNotBlank()) {
-                                val updatedChallenge = challenge.copy(
-                                    title = title,
-                                    description = description,
-                                    category = category,
-                                    difficulty = difficulty,
-                                    completed = isCompleted,
-                                    completedDate = if (isCompleted && !challenge.completed) System.currentTimeMillis() else if (!isCompleted) null else challenge.completedDate
-                                )
-                                onSaveChallenge(updatedChallenge)
-                            }
+                            onConfirm(title, description, category, points)
                         },
                         enabled = title.isNotBlank() && description.isNotBlank()
                     ) {
@@ -242,27 +207,25 @@ fun EditChallengeDialog(
         }
     }
     
-    // Диалог подтверждения удаления
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Удалить челлендж") },
-            text = { Text("Вы уверены, что хотите удалить челлендж \"${challenge.title}\"?") },
+            title = { Text("Подтверждение удаления") },
+            text = { Text("Вы уверены, что хотите удалить этот челлендж?") },
             confirmButton = {
-                Button(
+                TextButton(
                     onClick = {
-                        onDeleteChallenge(challenge)
                         showDeleteConfirmation = false
-                    },
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
+                        onDelete()
+                    }
                 ) {
                     Text("Удалить")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirmation = false }) {
+                TextButton(
+                    onClick = { showDeleteConfirmation = false }
+                ) {
                     Text("Отмена")
                 }
             }

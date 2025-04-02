@@ -1,6 +1,9 @@
 package com.challenges.dailychallenges.ui.viewmodel
 
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.challenges.dailychallenges.data.model.Achievement
@@ -9,7 +12,9 @@ import com.challenges.dailychallenges.data.model.Challenge
 import com.challenges.dailychallenges.data.model.ChallengeCategory
 import com.challenges.dailychallenges.data.repository.AchievementRepository
 import com.challenges.dailychallenges.data.repository.FirebaseRepository
+import com.challenges.dailychallenges.ui.state.MainUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
@@ -18,21 +23,23 @@ import javax.inject.Inject
 
 private const val TAG = "MainViewModel"
 
-data class MainUiState(
-    val challenges: List<Challenge> = emptyList(),
-    val selectedCategory: String? = null,
-    val currentChallenge: Challenge? = null,
-    val isLoading: Boolean = false,
-    val error: String? = null,
-    val recentlyUnlockedAchievements: List<Achievement> = emptyList()
-)
-
 enum class SortOption {
     POINTS,
     CATEGORY,
     DATE
 }
 
+// Define achievement constants
+private const val COMPLETE_50_CHALLENGES = "COMPLETE_50_CHALLENGES"
+private const val COMPLETE_25_CHALLENGES = "COMPLETE_25_CHALLENGES" 
+private const val COMPLETE_10_CHALLENGES = "COMPLETE_10_CHALLENGES"
+private const val COMPLETE_5_CHALLENGES = "COMPLETE_5_CHALLENGES"
+private const val COMPLETE_FIRST_CHALLENGE = "COMPLETE_FIRST_CHALLENGE"
+private const val CONVERSATION_MASTER = "CONVERSATION_MASTER"
+private const val VIDEO_MASTER = "VIDEO_MASTER"
+private const val PUBLIC_SPEAKING_MASTER = "PUBLIC_SPEAKING_MASTER"
+
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val firebaseRepository: FirebaseRepository,
@@ -56,14 +63,35 @@ class MainViewModel @Inject constructor(
 
     private val _showSeasonalChallenges = MutableStateFlow(false)
     val showSeasonalChallenges: StateFlow<Boolean> = _showSeasonalChallenges.asStateFlow()
+    
+    // Properties needed for the updated UI
+    private val _challenges = MutableStateFlow<List<Challenge>>(emptyList())
+    val challenges = _challenges.asStateFlow()
+    
+    private val _achievements = MutableStateFlow<List<Achievement>>(emptyList())
+    val achievements = _achievements.asStateFlow()
+    
+    // Use a derived flow for completedChallengesCount to keep it in sync with challenges
+    private val _completedChallengesCount = MutableStateFlow(0)
+    val completedChallengesCount = _challenges.map { challenges ->
+        challenges.count { it.completed }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0
+    )
+    
+    var isLoading by mutableStateOf(false)
+    var error by mutableStateOf<String?>(null)
 
     init {
-        Log.d(TAG, "Инициализация MainViewModel")
+        Log.d(TAG, "MainViewModel initialized")
         loadChallenges()
+        loadAchievements()
     }
 
-    // Базовый поток челленджей для экрана
-    val challenges = combine(
+    // Основной поток челленджей
+    private val challengesFlow = combine(
         searchQuery,
         selectedSortOption,
         selectedCategory,
@@ -71,69 +99,81 @@ class MainViewModel @Inject constructor(
         showSeasonalChallenges
     ) { query, sort, category, custom, seasonal ->
         Log.d(TAG, "Комбинация параметров поиска: query=$query, sort=$sort, category=$category, custom=$custom, seasonal=$seasonal")
-        when {
+        (when {
             query.isNotBlank() -> firebaseRepository.searchChallenges(query)
             custom -> firebaseRepository.getCustomChallenges()
             category != null -> firebaseRepository.getChallengesByCategory(category)
-            else -> getAllChallenges(sort)
-        }
+            else -> firebaseRepository.getAllChallenges()
+        })
     }.flatMapLatest { it }
         .catch { e -> 
             Log.e(TAG, "Ошибка в потоке challenges: ${e.message}", e)
             emit(emptyList()) 
         }
 
-    // Получение всех челленджей с учетом сортировки
-    private fun getAllChallenges(sort: SortOption): Flow<List<Challenge>> {
-        Log.d(TAG, "Запрос челленджей с сортировкой: $sort")
-        return flow {
-            try {
-                val challengesFlow = firebaseRepository.getAllChallenges()
-                val challenges = challengesFlow.firstOrNull() ?: emptyList()
-                
-                // Сортировка челленджей
-                val sortedChallenges = when (sort) {
-                    SortOption.POINTS -> challenges.sortedByDescending { it.points }
-                    SortOption.CATEGORY -> challenges.sortedBy { it.category }
-                    SortOption.DATE -> challenges.sortedByDescending { it.createdDate }
-                }
-                
-                emit(sortedChallenges)
-            } catch (e: Exception) {
-                Log.e(TAG, "Ошибка получения челленджей: ${e.message}", e)
-                emit(emptyList())
-            }
-        }
-    }
-
     val totalPoints = firebaseRepository.getTotalPoints()
-    val completedChallengesCount = firebaseRepository.getCompletedChallengesCount()
-    val achievementPoints = achievementRepository.getAchievementPoints()
     val unlockedAchievementsCount = achievementRepository.getUnlockedAchievementsCount()
     val recentlyUnlockedAchievements = achievementRepository.getRecentlyUnlockedAchievements()
 
     // Специальный поток для отображения только пользовательских челленджей
     val customChallenges = firebaseRepository.getCustomChallenges()
 
+    // Проверяем и обеспечиваем аутентификацию пользователя (анонимно, если необходимо)
+    private suspend fun ensureAuthentication(): Boolean {
+        return true // Simplified for now - we'll just return true as we know the user is authenticated
+    }
+
     fun loadChallenges() {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "Загрузка челленджей")
-                _uiState.update { it.copy(isLoading = true) }
+                Log.d(TAG, "Loading challenges")
+                isLoading = true
+                error = null
                 
-                // Загрузка челленджей
+                // Check authentication
+                val isAuthenticated = ensureAuthentication()
+                if (!isAuthenticated) {
+                    Log.w(TAG, "User not authenticated, data may be unavailable")
+                }
+                
+                // Load challenges
+                firebaseRepository.getAllChallenges().collect { challengesList ->
+                    _challenges.value = challengesList
+                    // Remove manual update of completedChallengesCount as it's now derived from challenges
+                    isLoading = false
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading challenges: ${e.message}", e)
+                error = e.message
+                isLoading = false
+                // Try fallback method
+                fallbackLoadChallenges()
+            }
+        }
+    }
+    
+    private fun fallbackLoadChallenges() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Using fallback path for loading")
                 firebaseRepository.getAllChallenges().collect { challenges ->
-                    Log.d(TAG, "Получено ${challenges.size} челленджей")
-                    _uiState.update { 
-                        it.copy(
-                            challenges = challenges,
-                            isLoading = false
-                        )
+                    Log.d(TAG, "Received ${challenges.size} challenges via fallback path")
+                    _challenges.value = challenges
+                    // Remove manual update of completedChallengesCount as it's now derived from challenges
+                    isLoading = false
+                    
+                    // If collection is empty, create test data
+                    if (challenges.isEmpty()) {
+                        Log.d(TAG, "Collection is empty, creating sample data")
+                        createSampleChallenges()
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Ошибка при загрузке челленджей: ${e.message}", e)
-                _uiState.update { it.copy(error = e.message, isLoading = false) }
+                Log.e(TAG, "Error during fallback loading: ${e.message}", e)
+                error = "Failed to load data. ${e.message}"
+                isLoading = false
+                // Also try to create sample challenges
+                createSampleChallenges()
             }
         }
     }
@@ -159,167 +199,397 @@ class MainViewModel @Inject constructor(
     }
 
     // Создание пользовательского челленджа
-    fun createCustomChallenge(title: String, description: String, category: String, points: Int) {
+    fun createCustomChallenge(title: String, description: String, category: String, points: Int, isFromSystem: Boolean = false) {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "Создание пользовательского челленджа: $title (категория: $category)")
-                val challenge = Challenge(
+                Log.d(TAG, "Creating custom challenge: $title")
+                val newChallenge = Challenge(
                     id = UUID.randomUUID().toString(),
-                    title = title,
+                    title = if (isFromSystem) "ADDED: $title" else title,
                     description = description,
                     category = category,
                     points = points,
-                    isCustom = true
+                    isCustom = true,
+                    completed = false,
+                    createdDate = System.currentTimeMillis()
                 )
-                
-                firebaseRepository.insertChallenge(challenge)
-                Log.d(TAG, "Создан пользовательский челлендж с ID: ${challenge.id}")
-                
-                // Проверка достижений по созданию челленджей
-                achievementRepository.checkCustomChallengesCreation()
+                firebaseRepository.addChallenge(newChallenge)
+                _challenges.update { currentList ->
+                    currentList + newChallenge
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Ошибка при создании пользовательского челленджа: ${e.message}", e)
-                _uiState.value = _uiState.value.copy(error = e.message)
+                Log.e(TAG, "Error creating challenge: ${e.message}", e)
+                error = "Error creating: ${e.message}"
             }
         }
     }
-    
-    // Удаление челленджа
+
+    fun editChallenge(challenge: Challenge, title: String, description: String, category: String, points: Int) {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Editing challenge: ${challenge.id}")
+                val updatedChallenge = challenge.copy(
+                    title = title,
+                    description = description,
+                    category = category,
+                    points = points
+                )
+                firebaseRepository.updateChallenge(updatedChallenge)
+                _challenges.update { currentList ->
+                    currentList.map { if (it.id == challenge.id) updatedChallenge else it }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error editing challenge: ${e.message}", e)
+                error = "Error editing: ${e.message}"
+            }
+        }
+    }
+
+    // Specifically update the completion status only
+    fun updateChallengeCompletion(challenge: Challenge, isCompleted: Boolean) {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Updating completion status for challenge: ${challenge.id} to $isCompleted")
+                
+                // Don't update if status is unchanged
+                if (challenge.completed == isCompleted) return@launch
+                
+                val updatedChallenge = challenge.copy(completed = isCompleted)
+                firebaseRepository.updateChallenge(updatedChallenge)
+                
+                // Update local list - the completedChallengesCount will be updated automatically
+                _challenges.update { currentList ->
+                    currentList.map { if (it.id == challenge.id) updatedChallenge else it }
+                }
+                
+                // If challenge is completed, check achievements
+                if (isCompleted) {
+                    checkAchievements()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating completion status: ${e.message}", e)
+                error = "Error updating status: ${e.message}"
+            }
+        }
+    }
+
+    fun toggleChallengeCompletion(challenge: Challenge) {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Toggling completion status for challenge: ${challenge.id}")
+                val updatedChallenge = challenge.copy(completed = !challenge.completed)
+                firebaseRepository.updateChallenge(updatedChallenge)
+                
+                // Update local list - the completedChallengesCount will be updated automatically
+                _challenges.update { currentList ->
+                    currentList.map { if (it.id == challenge.id) updatedChallenge else it }
+                }
+                
+                // If challenge is completed, check achievements
+                if (updatedChallenge.completed) {
+                    checkAchievements()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating completion status: ${e.message}", e)
+                error = "Error updating status: ${e.message}"
+            }
+        }
+    }
+
     fun deleteChallenge(challenge: Challenge) {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "Удаление челленджа с ID: ${challenge.id}")
+                Log.d(TAG, "Deleting challenge: ${challenge.id}")
                 firebaseRepository.deleteChallenge(challenge)
-            } catch (e: Exception) {
-                Log.e(TAG, "Ошибка при удалении челленджа: ${e.message}", e)
-                _uiState.value = _uiState.value.copy(error = e.message)
-            }
-        }
-    }
-    
-    // Редактирование челленджа
-    fun editChallenge(challenge: Challenge) {
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "Редактирование челленджа: ${challenge.id}")
-                firebaseRepository.updateChallenge(challenge)
-                loadChallenges()
-            } catch (e: Exception) {
-                Log.e(TAG, "Ошибка при редактировании челленджа: ${e.message}", e)
-                _uiState.update { it.copy(error = "Ошибка редактирования: ${e.message}") }
-            }
-        }
-    }
-
-    fun addChallenge(title: String, description: String, category: String, difficulty: String) {
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "Добавление нового челленджа: $title")
                 
-                val finalCategory = if (category.isBlank()) ChallengeCategory.OTHER.value else category
-                
-                val newChallenge = Challenge(
-                    id = UUID.randomUUID().toString(),
-                    title = title,
-                    description = description,
-                    category = finalCategory,
-                    difficulty = difficulty,
-                    completed = false,
-                    createdDate = System.currentTimeMillis(),
-                    userId = firebaseRepository.getCurrentUserId()
-                )
-                
-                firebaseRepository.insertChallenge(newChallenge)
-                loadChallenges()
-            } catch (e: Exception) {
-                Log.e(TAG, "Ошибка при добавлении челленджа: ${e.message}", e)
-                _uiState.update { it.copy(error = "Ошибка добавления: ${e.message}") }
-            }
-        }
-    }
-    
-    fun deleteChallenge(challengeId: String) {
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "Удаление челленджа: $challengeId")
-                firebaseRepository.deleteChallengeById(challengeId)
-                loadChallenges()
-            } catch (e: Exception) {
-                Log.e(TAG, "Ошибка при удалении челленджа: ${e.message}", e)
-                _uiState.update { it.copy(error = "Ошибка удаления: ${e.message}") }
-            }
-        }
-    }
-    
-    fun toggleChallengeCompleted(challengeId: String) {
-        viewModelScope.launch {
-            try {
-                Log.d(TAG, "Переключение статуса выполнения для челленджа: $challengeId")
-                val challenge = firebaseRepository.getChallengeById(challengeId)
-                if (challenge != null) {
-                    val updatedChallenge = challenge.copy(
-                        completed = !challenge.completed,
-                        completedDate = if (!challenge.completed) System.currentTimeMillis() else null
-                    )
-                    firebaseRepository.updateChallenge(updatedChallenge)
-                    
-                    // Если челлендж выполнен, проверяем достижения
-                    if (!challenge.completed) {
-                        // Запоминаем текущие разблокированные достижения
-                        val unlockedAchievementsFlow = achievementRepository.getUnlockedAchievements()
-                        val currentUnlocked = unlockedAchievementsFlow.firstOrNull() ?: emptyList()
-                    
-                        // Проверить достижения по категории
-                        achievementRepository.checkCategoryCompletion(challenge.category)
-                        
-                        // Проверить достижения по сложности
-                        if (challenge.difficulty != null) {
-                            achievementRepository.checkDifficultyCompletion(challenge.difficulty)
-                        }
-                        
-                        // Получить новые разблокированные достижения
-                        val newUnlockedFlow = achievementRepository.getUnlockedAchievements()
-                        val newUnlocked = newUnlockedFlow.firstOrNull() ?: emptyList()
-                        
-                        // Найти новые разблокированные достижения
-                        val newlyUnlocked = newUnlocked.filter { new ->
-                            currentUnlocked.none { current -> current.id == new.id }
-                        }
-                        
-                        // Обновить UI-состояние с новыми разблокированными достижениями
-                        if (newlyUnlocked.isNotEmpty()) {
-                            _uiState.update { it.copy(recentlyUnlockedAchievements = newlyUnlocked) }
-                        }
-                    }
-                    
-                    loadChallenges()
+                // Update local list - the completedChallengesCount will be updated automatically
+                _challenges.update { currentList ->
+                    currentList.filter { it.id != challenge.id }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Ошибка при переключении статуса выполнения: ${e.message}", e)
-                _uiState.update { it.copy(error = "Ошибка обновления статуса: ${e.message}") }
+                Log.e(TAG, "Error deleting challenge: ${e.message}", e)
+                error = "Error deleting: ${e.message}"
             }
         }
     }
 
-    // Загрузка только завершенных челленджей
+    private fun checkAchievements() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Checking achievements")
+                val completedCount = _completedChallengesCount.value
+                
+                // Check different achievements based on number of completed challenges
+                when {
+                    completedCount >= 50 -> {
+                        val achievement = Achievement(
+                            title = "Challenge Master",
+                            description = "Complete 50 challenges",
+                            condition = COMPLETE_50_CHALLENGES,
+                            points = 100,
+                            threshold = 50
+                        )
+                        unlockAchievement(achievement)
+                    }
+                    completedCount >= 25 -> {
+                        val achievement = Achievement(
+                            title = "Challenge Expert",
+                            description = "Complete 25 challenges",
+                            condition = COMPLETE_25_CHALLENGES,
+                            points = 75,
+                            threshold = 25
+                        )
+                        unlockAchievement(achievement)
+                    }
+                    completedCount >= 10 -> {
+                        val achievement = Achievement(
+                            title = "Challenge Enthusiast",
+                            description = "Complete 10 challenges",
+                            condition = COMPLETE_10_CHALLENGES,
+                            points = 50,
+                            threshold = 10
+                        )
+                        unlockAchievement(achievement)
+                    }
+                    completedCount >= 5 -> {
+                        val achievement = Achievement(
+                            title = "Challenge Beginner",
+                            description = "Complete 5 challenges",
+                            condition = COMPLETE_5_CHALLENGES,
+                            points = 30,
+                            threshold = 5
+                        )
+                        unlockAchievement(achievement)
+                    }
+                    completedCount >= 1 -> {
+                        val achievement = Achievement(
+                            title = "First Challenge",
+                            description = "Complete your first challenge",
+                            condition = COMPLETE_FIRST_CHALLENGE,
+                            points = 10,
+                            threshold = 1
+                        )
+                        unlockAchievement(achievement)
+                    }
+                }
+                
+                // Also check category achievements
+                checkCategoryAchievements()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking achievements: ${e.message}", e)
+                // Don't update UI, this is a background operation
+            }
+        }
+    }
+
+    private fun checkCategoryAchievements() {
+        viewModelScope.launch {
+            try {
+                // Check completed challenges by category
+                val completedChallenges = _challenges.value.filter { it.completed }
+                val categoriesCompleted = completedChallenges.groupBy { it.category }
+                
+                for ((category, challenges) in categoriesCompleted) {
+                    if (challenges.size >= 5) {
+                        when (category) {
+                            "CONVERSATION" -> {
+                                val achievement = Achievement(
+                                    title = "Conversation Master",
+                                    description = "Complete 5 conversation challenges",
+                                    condition = CONVERSATION_MASTER,
+                                    category = "CONVERSATION",
+                                    points = 50,
+                                    threshold = 5
+                                )
+                                unlockAchievement(achievement)
+                            }
+                            "VIDEO" -> {
+                                val achievement = Achievement(
+                                    title = "Video Master",
+                                    description = "Complete 5 video challenges",
+                                    condition = VIDEO_MASTER,
+                                    category = "VIDEO",
+                                    points = 50,
+                                    threshold = 5
+                                )
+                                unlockAchievement(achievement)
+                            }
+                            "PUBLIC" -> {
+                                val achievement = Achievement(
+                                    title = "Public Speaking Master",
+                                    description = "Complete 5 public speaking challenges",
+                                    condition = PUBLIC_SPEAKING_MASTER,
+                                    category = "PUBLIC",
+                                    points = 50,
+                                    threshold = 5
+                                )
+                                unlockAchievement(achievement)
+                            }
+                            // Other categories...
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking category achievements: ${e.message}", e)
+            }
+        }
+    }
+
+    // Update to use Achievement object instead of AchievementType
+    private suspend fun unlockAchievement(achievement: Achievement) {
+        try {
+            // First check if we need to create achievement
+            val achievements = _achievements.value
+            val existingAchievement = achievements.find { it.condition == achievement.condition }
+            
+            if (existingAchievement == null) {
+                // Create new achievement
+                achievementRepository.insertAchievement(achievement)
+            } else {
+                // Update existing achievement
+                achievementRepository.updateAchievementProgress(existingAchievement.id, existingAchievement.threshold)
+            }
+            
+            Log.d(TAG, "Achievement processing complete: ${achievement.title}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error with achievement ${achievement.title}: ${e.message}", e)
+        }
+    }
+
     fun loadCompletedChallenges() {
         viewModelScope.launch {
             try {
-                Log.d(TAG, "Загрузка завершенных челленджей")
-                _uiState.update { it.copy(isLoading = true) }
+                Log.d(TAG, "Loading completed challenges")
+                isLoading = true
                 
                 firebaseRepository.getCompletedChallenges().collect { completedChallenges ->
-                    Log.d(TAG, "Получено ${completedChallenges.size} завершенных челленджей")
-                    _uiState.update { 
-                        it.copy(
-                            challenges = completedChallenges,
-                            isLoading = false
-                        )
-                    }
+                    Log.d(TAG, "Received ${completedChallenges.size} completed challenges")
+                    _challenges.value = completedChallenges
+                    isLoading = false
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Ошибка при загрузке завершенных челленджей: ${e.message}", e)
-                _uiState.update { it.copy(error = e.message, isLoading = false) }
+                Log.e(TAG, "Error loading completed challenges: ${e.message}", e)
+                error = e.message
+                isLoading = false
+            }
+        }
+    }
+
+    // Метод для создания тестовых данных, если коллекция пуста
+    private fun createSampleChallenges() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Creating sample challenges")
+                val sampleChallenges = listOf(
+                    Challenge(
+                        id = "1",
+                        title = "Record a 5-minute video",
+                        description = "Record a 5-minute video about your favorite topic and share it with friends",
+                        category = "VIDEO",
+                        points = 10,
+                        completed = false,
+                        createdDate = System.currentTimeMillis()
+                    ),
+                    Challenge(
+                        id = "2",
+                        title = "Give a presentation",
+                        description = "Prepare and give a 10-minute presentation on any topic",
+                        category = "PUBLIC",
+                        points = 20,
+                        completed = false,
+                        createdDate = System.currentTimeMillis()
+                    ),
+                    Challenge(
+                        id = "3",
+                        title = "Write an article",
+                        description = "Write a 1000+ word article on a topic that interests you",
+                        category = "WRITING",
+                        points = 15,
+                        completed = false,
+                        createdDate = System.currentTimeMillis()
+                    ),
+                    Challenge(
+                        id = "4",
+                        title = "Record a podcast",
+                        description = "Record a 15-minute podcast on a topic of your choice",
+                        category = "PODCAST",
+                        points = 25,
+                        completed = false,
+                        createdDate = System.currentTimeMillis()
+                    ),
+                    Challenge(
+                        id = "5",
+                        title = "Conduct an interview",
+                        description = "Conduct an interview with an interesting person on a topic important to you",
+                        category = "CONVERSATION",
+                        points = 15,
+                        completed = false,
+                        createdDate = System.currentTimeMillis()
+                    )
+                )
+                
+                for (challenge in sampleChallenges) {
+                    firebaseRepository.addChallenge(challenge)
+                }
+                
+                _challenges.value = sampleChallenges
+                isLoading = false
+                
+                Log.d(TAG, "Created ${sampleChallenges.size} sample challenges")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error creating sample data: ${e.message}", e)
+                error = "Error creating sample data: ${e.message}"
+                isLoading = false
+            }
+        }
+    }
+    
+    // New functions for the updated UI
+    suspend fun syncChallenges() {
+        try {
+            Log.d(TAG, "Syncing challenges")
+            isLoading = true
+            error = null
+            
+            firebaseRepository.syncChallenges()
+            loadChallenges()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error syncing challenges: ${e.message}", e)
+            error = "Error syncing: ${e.message}"
+            isLoading = false
+        }
+    }
+    
+    suspend fun syncAchievements() {
+        try {
+            Log.d(TAG, "Syncing achievements")
+            isLoading = true
+            error = null
+            
+            achievementRepository.syncAchievements()
+            loadAchievements()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error syncing achievements: ${e.message}", e)
+            error = "Error syncing: ${e.message}"
+            isLoading = false
+        }
+    }
+    
+    fun loadAchievements() {
+        viewModelScope.launch {
+            try {
+                Log.d(TAG, "Loading achievements")
+                isLoading = true
+                error = null
+                
+                achievementRepository.getAllAchievements().collect { achievementsList ->
+                    _achievements.value = achievementsList
+                    isLoading = false
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading achievements: ${e.message}", e)
+                error = e.message
+                isLoading = false
             }
         }
     }

@@ -25,38 +25,43 @@ import kotlinx.coroutines.launch
 fun AppTopBar(
     title: String,
     onSyncClicked: (suspend () -> Unit)? = null,
-    onSignOutClicked: (() -> Unit)? = null
+    onSignOutClicked: (() -> Unit)? = null,
+    actions: @Composable (() -> Unit)? = null
 ) {
     val coroutineScope = rememberCoroutineScope()
     
     CenterAlignedTopAppBar(
         title = { Text(title) },
         actions = {
-            if (onSyncClicked != null) {
-                IconButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            try {
-                                onSyncClicked()
-                            } catch (e: Exception) {
-                                Log.e("AppTopBar", "Error during sync: ${e.message}", e)
+            if (actions != null) {
+                actions()
+            } else {
+                if (onSyncClicked != null) {
+                    IconButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                try {
+                                    onSyncClicked()
+                                } catch (e: Exception) {
+                                    Log.e("AppTopBar", "Error during sync: ${e.message}", e)
+                                }
                             }
                         }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = "Синхронизировать с Firebase"
+                        )
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Sync,
-                        contentDescription = "Синхронизировать с Firebase"
-                    )
                 }
-            }
-            
-            if (onSignOutClicked != null) {
-                IconButton(onClick = { onSignOutClicked() }) {
-                    Icon(
-                        imageVector = Icons.Default.Logout,
-                        contentDescription = "Выйти"
-                    )
+                
+                if (onSignOutClicked != null) {
+                    IconButton(onClick = { onSignOutClicked() }) {
+                        Icon(
+                            imageVector = Icons.Default.Logout,
+                            contentDescription = "Выйти"
+                        )
+                    }
                 }
             }
         }

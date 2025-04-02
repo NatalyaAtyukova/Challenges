@@ -32,24 +32,47 @@ class ChallengesApplication : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        // Initialize Firebase
-        FirebaseApp.initializeApp(this)
         
-        // Инициализация Firebase Firestore
-        FirebaseHelper.initFirestore()
-        
-        // Disable app verification for testing to avoid reCAPTCHA issues
-        Firebase.auth.firebaseAuthSettings.setAppVerificationDisabledForTesting(true)
-        
-        // Убедимся, что коллекция "challenges" существует
-        applicationScope.launch {
-            FirebaseHelper.ensureChallengesCollectionExists()
+        try {
+            Log.d(TAG, "Инициализация Firebase...")
+            // Убедиться, что Firebase инициализирован корректно
+            FirebaseApp.initializeApp(this)
+            
+            // Инициализация Firebase Firestore
+            FirebaseHelper.initFirestore()
+            
+            // Disable app verification for testing to avoid reCAPTCHA issues
+            val auth = FirebaseAuth.getInstance()
+            auth.firebaseAuthSettings.setAppVerificationDisabledForTesting(true)
+            Log.d(TAG, "Текущий пользователь: ${auth.currentUser?.uid ?: "нет"}")
+            
+            // Убедимся, что коллекция "challenges" существует
+            applicationScope.launch {
+                try {
+                    FirebaseHelper.ensureChallengesCollectionExists()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Ошибка при проверке коллекции challenges: ${e.message}", e)
+                }
+            }
+            
+            // Синхронизация челленджей с Firebase с обработкой ошибок
+            applicationScope.launch {
+                try {
+                    syncChallengesWithFirebase()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Ошибка при синхронизации челленджей: ${e.message}", e)
+                }
+            }
+            
+            // Настройка периодического обновления челленджей
+            try {
+                setupPeriodicChallengeUpdate()
+            } catch (e: Exception) {
+                Log.e(TAG, "Ошибка при настройке периодического обновления: ${e.message}", e)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Критическая ошибка при инициализации приложения: ${e.message}", e)
         }
-        
-        // Синхронизация челленджей с Firebase
-        syncChallengesWithFirebase()
-        
-        setupPeriodicChallengeUpdate()
     }
     
     private fun syncChallengesWithFirebase() {

@@ -97,6 +97,10 @@ dependencies {
     
     // SafetyNet for reCAPTCHA verification
     implementation("com.google.android.gms:play-services-safetynet:18.0.1")
+    // Google Play Services Auth
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
+    // Google Play Services основные компоненты
+    implementation("com.google.android.gms:play-services-base:18.3.0")
     
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.5.0")

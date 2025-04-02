@@ -53,13 +53,16 @@ class ChallengeRepository @Inject constructor(
         }
     }
     
+    fun getAllChallengesOneTime(): Flow<List<Challenge>> = firebaseRepository.getAllChallengesOneTime()
+    
     fun getAllChallengesFromFirebase(): Flow<List<Challenge>> {
-        return firebaseRepository.getAllChallenges()
+        // Теперь используем одноразовый запрос для более надежной загрузки
+        return firebaseRepository.getAllChallengesOneTime()
     }
     
     fun getChallengesByDate(): Flow<List<Challenge>> {
         // Этот метод фактически возвращает все челленджи, так как сортировка по дате
         // уже реализована в FirebaseRepository.getAllChallenges()
-        return firebaseRepository.getAllChallenges()
+        return firebaseRepository.getAllChallengesOneTime()
     }
 } 

@@ -29,13 +29,13 @@ import com.challenges.dailychallenges.ui.theme.NeonPink
 @Composable
 fun AddChallengeDialog(
     onDismiss: () -> Unit,
-    onAddChallenge: (title: String, description: String, category: String, difficulty: String) -> Unit
+    onConfirm: (title: String, description: String, category: String, points: Int) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var category by remember { mutableStateOf(ChallengeCategory.OTHER.toString()) }
     var categoryDisplayName by remember { mutableStateOf(ChallengeCategory.OTHER.displayName) }
-    var difficulty by remember { mutableStateOf(ChallengeDifficulty.MEDIUM.toString()) }
+    var points by remember { mutableStateOf(50) }
     var expanded by remember { mutableStateOf(false) }
     
     var isVisible by remember { mutableStateOf(false) }
@@ -148,27 +148,17 @@ fun AddChallengeDialog(
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
-                    // Выбор сложности
+                    // Выбор баллов
                     Text(
-                        text = "Сложность: ${difficulty}",
+                        text = "Баллы: $points",
                         modifier = Modifier.fillMaxWidth()
                     )
                     
                     Slider(
-                        value = when(difficulty) {
-                            ChallengeDifficulty.EASY.toString() -> 0f
-                            ChallengeDifficulty.MEDIUM.toString() -> 0.5f
-                            ChallengeDifficulty.HARD.toString() -> 1f
-                            else -> 0.5f
-                        },
-                        onValueChange = {
-                            difficulty = when {
-                                it < 0.33f -> ChallengeDifficulty.EASY.toString()
-                                it < 0.66f -> ChallengeDifficulty.MEDIUM.toString()
-                                else -> ChallengeDifficulty.HARD.toString()
-                            }
-                        },
-                        steps = 2,
+                        value = points.toFloat(),
+                        onValueChange = { points = it.toInt() },
+                        valueRange = 10f..100f,
+                        steps = 9,
                         modifier = Modifier.fillMaxWidth()
                     )
                     
@@ -189,7 +179,7 @@ fun AddChallengeDialog(
                         
                         Button(
                             onClick = {
-                                onAddChallenge(title, description, category, difficulty)
+                                onConfirm(title, description, category, points)
                             },
                             enabled = title.isNotBlank() && description.isNotBlank()
                         ) {

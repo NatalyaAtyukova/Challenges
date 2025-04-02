@@ -24,6 +24,9 @@ import com.challenges.dailychallenges.ui.theme.NeonPink
 fun ChallengeItem(
     challenge: Challenge,
     onClick: () -> Unit,
+    onCompletionToggle: (Boolean) -> Unit,
+    isEditable: Boolean = true,
+    allowCompletion: Boolean = true,
     index: Int = 0
 ) {
     // Определяем цвет бордера в зависимости от категории
@@ -31,6 +34,7 @@ fun ChallengeItem(
         challenge.category.contains("CONVERSATION", ignoreCase = true) -> NeonBlue
         challenge.category.contains("VIDEO", ignoreCase = true) -> NeonPink
         challenge.category.contains("PUBLIC", ignoreCase = true) -> NeonGreen
+        challenge.category.contains("Сообщество", ignoreCase = true) -> NeonBlue
         else -> MaterialTheme.colorScheme.primary
     }
     
@@ -46,7 +50,7 @@ fun ChallengeItem(
                 modifier = glowModifier
                     .fillMaxWidth()
                     .padding(4.dp)
-                    .clickable { onClick() }
+                    .clickable(enabled = isEditable) { onClick() }
                     .border(
                         width = 1.dp,
                         brush = Brush.horizontalGradient(listOf(borderColor, Color.Transparent)),
@@ -62,23 +66,42 @@ fun ChallengeItem(
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
-                    Text(
-                        text = challenge.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (challenge.completed) 
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Text(
-                        text = challenge.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = challenge.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = if (challenge.completed) 
+                                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                        else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            Text(
+                                text = challenge.description,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        
+                        if (allowCompletion) {
+                            Checkbox(
+                                checked = challenge.completed,
+                                onCheckedChange = { onCompletionToggle(it) },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = borderColor,
+                                    uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                )
+                            )
+                        }
+                    }
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     
@@ -113,19 +136,19 @@ fun ChallengeItem(
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                         )
                         
-                        if (challenge.completed) {
+                        if (!isEditable) {
                             Spacer(modifier = Modifier.width(8.dp))
                             SuggestionChip(
                                 onClick = { },
                                 label = { 
                                     Text(
-                                        text = "Выполнено",
+                                        text = "Из сообщества",
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                 },
                                 colors = SuggestionChipDefaults.suggestionChipColors(
-                                    containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
-                                    labelColor = MaterialTheme.colorScheme.tertiary
+                                    containerColor = NeonBlue.copy(alpha = 0.2f),
+                                    labelColor = NeonBlue
                                 ),
                                 border = null
                             )

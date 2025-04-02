@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,10 +45,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import com.challenges.dailychallenges.R
 import com.challenges.dailychallenges.data.model.Challenge
 import com.challenges.dailychallenges.ui.components.AddChallengeDialog
 import com.challenges.dailychallenges.ui.components.AppTopBar
@@ -54,14 +59,16 @@ import com.challenges.dailychallenges.ui.components.BottomNavigation
 import com.challenges.dailychallenges.ui.components.EditChallengeDialog
 import com.challenges.dailychallenges.ui.components.StatsCardHorizontal
 import com.challenges.dailychallenges.ui.navigation.Screen
-import com.challenges.dailychallenges.ui.viewmodel.AuthViewModel
 import com.challenges.dailychallenges.ui.viewmodel.MainViewModel
-import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.challenges.dailychallenges.ui.animations.PulseAnimation
 import com.challenges.dailychallenges.ui.theme.NeonGreen
+import com.challenges.dailychallenges.ui.theme.NeonBlue
+import androidx.compose.foundation.layout.PaddingValues
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 
 private const val TAG = "MainScreen"
 
@@ -69,37 +76,52 @@ private const val TAG = "MainScreen"
 @Composable
 fun MainScreen(
     viewModel: MainViewModel,
-    authViewModel: AuthViewModel,
-    navController: NavController,
+    navController: NavHostController,
     onNavigateToAuth: () -> Unit
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    var showAddDialog by remember { mutableStateOf(false) }
-    var selectedChallenge by remember { mutableStateOf<Challenge?>(null) }
-    var showEditDialog by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
-    var filterCategory by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
+    val challenges by viewModel.challenges.collectAsState()
+    val completedChallengesCount by viewModel.completedChallengesCount.collectAsState()
+    val unlockedAchievements by viewModel.unlockedAchievementsCount.collectAsState(initial = 0)
+    val totalPoints by viewModel.totalPoints.collectAsState(initial = 0)
     
-    LaunchedEffect(key1 = true) {
-        viewModel.loadChallenges()
-    }
+    var searchQuery by remember { mutableStateOf("") }
+    val (selectedCategory, setSelectedCategory) = remember { mutableStateOf<String?>(null) }
+
+    var showAddDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var currentEditChallenge by remember { mutableStateOf<Challenge?>(null) }
     
     Scaffold(
         topBar = {
             AppTopBar(
-                title = "Ежедневные челленджи",
-                onSyncClicked = {
-                    viewModel.loadChallenges()
-                },
-                onSignOutClicked = {
-                    FirebaseAuth.getInstance().signOut()
-                    onNavigateToAuth()
+                title = stringResource(id = R.string.app_name),
+                actions = {
+                    IconButton(onClick = {
+                        coroutineScope.launch {
+                            viewModel.syncChallenges()
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = stringResource(R.string.sync_challenges),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    IconButton(onClick = onNavigateToAuth) {
+                        Icon(
+                            imageVector = Icons.Default.ExitToApp,
+                            contentDescription = stringResource(R.string.sign_out),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             )
         },
         bottomBar = {
-            BottomNavigation(navController)
+            BottomNavigation(
+                navController = navController
+            )
         },
         floatingActionButton = {
             PulseAnimation(pulseMagnitude = 0.03f) { animModifier ->
@@ -121,52 +143,52 @@ fun MainScreen(
         ) {
             // Статистика
             StatsCardHorizontal(
-                totalChallenges = uiState.challenges.size,
-                completedChallenges = uiState.challenges.count { it.completed },
-                streakDays = 5 // TODO: Реализовать подсчет дней
+                totalChallenges = challenges.size,
+                completedChallenges = completedChallengesCount,
+                streakDays = unlockedAchievements
             )
             
             // Поиск
             SearchBar(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 query = searchQuery,
-                onQueryChange = { searchQuery = it },
-                onSearch = { isSearchActive = false },
-                active = isSearchActive,
-                onActiveChange = { isSearchActive = it },
+                onQueryChange = { 
+                    searchQuery = it
+                    viewModel.updateSearchQuery(it)
+                },
+                onSearch = { 
+                    // Handle search
+                },
+                active = false,
+                onActiveChange = { 
+                    // Handle search active change
+                },
                 placeholder = { Text("Поиск челленджей") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Поиск") },
-                trailingIcon = {
-                    IconButton(onClick = { isSearchActive = !isSearchActive }) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Фильтры")
-                    }
-                }
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Поиск") }
             ) {
                 // Содержимое поиска
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(uiState.challenges.filter { 
+                    items(challenges.filter { 
                         it.title.contains(searchQuery, ignoreCase = true) || 
                         it.description.contains(searchQuery, ignoreCase = true)
                     }) { challenge ->
                         ChallengeItem(
                             challenge = challenge,
                             onClick = {
-                                selectedChallenge = challenge
+                                currentEditChallenge = challenge
                                 showEditDialog = true
-                                isSearchActive = false
-                            },
-                            index = uiState.challenges.indexOf(challenge)
+                            }
                         )
                     }
                 }
             }
             
             // Фильтры категорий
-            val categories = uiState.challenges
+            val categories = challenges
                 .map { it.category }
                 .distinct()
                 .filter { it.isNotBlank() }
@@ -179,121 +201,120 @@ fun MainScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     FilterChip(
-                        selected = filterCategory.isEmpty(),
-                        onClick = { filterCategory = "" },
+                        selected = selectedCategory.isNullOrEmpty(),
+                        onClick = { 
+                            setSelectedCategory(null)
+                            viewModel.setCategory(null)
+                        },
                         label = { Text("Все") }
                     )
                     
                     categories.forEach { category ->
                         FilterChip(
-                            selected = filterCategory == category,
-                            onClick = { filterCategory = if (filterCategory == category) "" else category },
+                            selected = selectedCategory == category,
+                            onClick = { 
+                                setSelectedCategory(if (selectedCategory == category) null else category)
+                                viewModel.setCategory(if (selectedCategory == category) null else category)
+                            },
                             label = { Text(category) }
                         )
                     }
                 }
             }
             
-            // Список челленджей
-            if (uiState.isLoading) {
+            // Список моих челленджей
+            if (viewModel.isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
-            } else if (uiState.challenges.isEmpty()) {
+            } else if (viewModel.error != null) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Нет активных челленджей.\nНажмите + чтобы добавить!",
+                        text = viewModel.error ?: "Неизвестная ошибка",
+                        color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center
                     )
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    val filteredChallenges = uiState.challenges.filter { challenge ->
-                        val matchesCategory = filterCategory.isEmpty() || challenge.category == filterCategory
-                        val matchesSearch = searchQuery.isEmpty() || 
-                                challenge.title.contains(searchQuery, ignoreCase = true) ||
-                                challenge.description.contains(searchQuery, ignoreCase = true)
-                        matchesCategory && matchesSearch
+                val filteredChallenges = challenges.filter { challenge ->
+                    val matchesCategory = selectedCategory.isNullOrEmpty() || challenge.category == selectedCategory
+                    val matchesSearch = searchQuery.isEmpty() || 
+                            challenge.title.contains(searchQuery, ignoreCase = true) ||
+                            challenge.description.contains(searchQuery, ignoreCase = true)
+                    matchesCategory && matchesSearch
+                }.distinctBy { it.id }
+                
+                if (filteredChallenges.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (searchQuery.isNotBlank() || selectedCategory?.isNotBlank() == true) {
+                                "Нет челленджей, соответствующих фильтрам"
+                            } else {
+                                "Нет активных челленджей.\nНажмите + чтобы добавить!"
+                            },
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                    
-                    if (filteredChallenges.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("Нет челленджей, соответствующих фильтрам")
-                            }
-                        }
-                    } else {
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         items(filteredChallenges) { challenge ->
                             ChallengeItem(
                                 challenge = challenge,
                                 onClick = {
-                                    selectedChallenge = challenge
+                                    currentEditChallenge = challenge
                                     showEditDialog = true
-                                },
-                                index = filteredChallenges.indexOf(challenge)
+                                }
                             )
                         }
                     }
                 }
             }
-            
-            // Отображение ошибки
-            uiState.error?.let { error ->
-                Text(
-                    text = "Ошибка: $error",
-                    color = Color.Red,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
         }
     }
     
-    // Диалог добавления челленджа
+    // Диалоги
     if (showAddDialog) {
         AddChallengeDialog(
             onDismiss = { showAddDialog = false },
-            onAddChallenge = { title, description, category, difficulty ->
-                viewModel.addChallenge(title, description, category, difficulty)
+            onConfirm = { title, description, category, points ->
+                viewModel.createCustomChallenge(title, description, category, points)
                 showAddDialog = false
             }
         )
     }
     
-    // Диалог редактирования челленджа
-    if (showEditDialog && selectedChallenge != null) {
+    if (showEditDialog && currentEditChallenge != null) {
         EditChallengeDialog(
-            challenge = selectedChallenge!!,
+            challenge = currentEditChallenge!!,
             onDismiss = { 
                 showEditDialog = false
-                selectedChallenge = null
+                currentEditChallenge = null
             },
-            onSaveChallenge = { updatedChallenge ->
-                viewModel.editChallenge(updatedChallenge)
+            onConfirm = { title, description, category, points ->
+                viewModel.editChallenge(currentEditChallenge!!, title, description, category, points)
                 showEditDialog = false
-                selectedChallenge = null
+                currentEditChallenge = null
             },
-            onDeleteChallenge = { challenge ->
-                viewModel.deleteChallenge(challenge.id)
+            onDelete = {
+                viewModel.deleteChallenge(currentEditChallenge!!)
                 showEditDialog = false
-                selectedChallenge = null
-            },
-            onToggleCompleted = { challenge ->
-                viewModel.toggleChallengeCompleted(challenge.id)
-                showEditDialog = false
-                selectedChallenge = null
+                currentEditChallenge = null
             }
         )
     }
@@ -302,15 +323,18 @@ fun MainScreen(
 @Composable
 fun ChallengeItem(
     challenge: Challenge,
-    onClick: () -> Unit,
-    index: Int
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -324,16 +348,30 @@ fun ChallengeItem(
                     text = challenge.title,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 
-                if (challenge.completed) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Выполнено",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (challenge.isCustom) {
+                        Text(
+                            text = "Пользовательский",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    
+                    if (challenge.completed) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Выполнено",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
             
@@ -342,7 +380,8 @@ fun ChallengeItem(
             Text(
                 text = challenge.description,
                 style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2
+                maxLines = 2,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
             )
             
             Spacer(modifier = Modifier.height(8.dp))
@@ -359,9 +398,9 @@ fun ChallengeItem(
                 )
                 
                 Text(
-                    text = "Сложность: ${challenge.difficulty}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "${challenge.points} очков",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
             
@@ -382,7 +421,9 @@ fun ChallengeItem(
             // Прогресс
             LinearProgressIndicator(
                 progress = if (challenge.completed) 1f else 0.5f,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                color = NeonGreen,
+                trackColor = MaterialTheme.colorScheme.surface
             )
         }
     }
